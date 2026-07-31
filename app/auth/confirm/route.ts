@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -6,19 +7,25 @@ import { createServerSupabase } from "@/lib/supabase/server";
  * Auth confirmation endpoint (invitation / password recovery).
  *
  * Scanner-proof design (Supabase docs, "Email prefetching" limitation):
- * mail providers (Gmail, Outlook SafeLinks) prefetch GET links and would
- * consume a one-time token before the user's real click. Therefore:
+ *  - GET never consumes credentials; it forwards upstream error codes or
+ *    redirects to the /auth/continue interstitial.
+ *  - POST (from the interstitial form) performs verifyOtp (token_hash) or
+ *    exchangeCodeForSession (PKCE code) and forwards to `next`.
  *
- *  - GET never consumes credentials. It forwards upstream error codes,
- *    and otherwise redirects to /auth/continue, an interstitial page with
- *    a button. Scanners follow GETs but do not submit forms.
- *  - POST (from the interstitial form) performs the actual exchange —
- *    verifyOtp for token_hash links (documented SSR pattern) or
- *    exchangeCodeForSession for PKCE codes — establishing the session
- *    server-side, then forwards to `next`.
- *
- * Only relative in-app paths are accepted as redirect targets.
+ * TEMPORARY DIAGNOSTICS (Phase 01 recovery-flow investigation): logs a
+ * token FINGERPRINT only — length + first 12 hex chars of a secondary
+ * hash (sha256) of the already-hashed token value — plus the Vercel
+ * request id. The raw token/token_hash is never logged. Remove after the
+ * recovery flow is verified end-to-end.
  */
+
+function fingerprint(value: string): string {
+  return createHash("sha256").update(value).digest("hex").slice(0, 12);
+}
+
+function diag(entry: Record<string, unknown>): void {
+  console.log(JSON.stringify({ diag: "auth_confirm", ...entry }));
+}
 
 function safeNext(raw: string | null): string {
   return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/set-password";
@@ -37,9 +44,18 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const upstreamErrorCode = searchParams.get("error_code");
   const next = safeNext(searchParams.get("next"));
+  const requestId = request.headers.get("x-vercel-id") ?? crypto.randomUUID();
 
-  // GoTrue redirected here with an error (e.g. otp_expired) instead of a
-  // credential — surface the code (never a token) to the login page.
+  diag({
+    step: "get",
+    requestId,
+    token_hash_len: tokenHash?.length ?? 0,
+    token_hash_fp: tokenHash ? fingerprint(tokenHash) : null,
+    type,
+    has_code: Boolean(code),
+    upstream_error: upstreamErrorCode,
+  });
+
   if (upstreamErrorCode) {
     return loginError(origin, upstreamErrorCode);
   }
@@ -63,6 +79,16 @@ export async function POST(request: Request) {
   const type = String(form.get("type") ?? "");
   const code = String(form.get("code") ?? "");
   const next = safeNext(String(form.get("next") ?? ""));
+  const requestId = request.headers.get("x-vercel-id") ?? crypto.randomUUID();
+
+  diag({
+    step: "post_received",
+    requestId,
+    token_hash_len: tokenHash.length,
+    token_hash_fp: tokenHash ? fingerprint(tokenHash) : null,
+    type,
+    has_code: Boolean(code),
+  });
 
   const supabase = await createServerSupabase();
 
@@ -71,14 +97,39 @@ export async function POST(request: Request) {
       type: type as EmailOtpType,
       token_hash: tokenHash,
     });
+    diag({
+      step: "post_verify_otp_result",
+      requestId,
+      token_hash_fp: fingerprint(tokenHash),
+      ok: !error,
+      error_code: error?.code ?? null,
+      error_status: error?.status ?? null,
+      error_name: error?.name ?? null,
+      error_message: error?.message?.slice(0, 120) ?? null,
+    });
     if (!error) return NextResponse.redirect(new URL(next, origin), 303);
-    return loginError(origin, error.code ?? "otp_expired");
+    // Report the REAL failure class — never substitute a guessed code.
+    return loginError(
+      origin,
+      error.code ?? (error.status ? `auth_http_${error.status}` : "verify_failed"),
+    );
   }
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+    diag({
+      step: "post_code_exchange_result",
+      requestId,
+      ok: !error,
+      error_code: error?.code ?? null,
+      error_status: error?.status ?? null,
+      error_message: error?.message?.slice(0, 120) ?? null,
+    });
     if (!error) return NextResponse.redirect(new URL(next, origin), 303);
-    return loginError(origin, error.code ?? "code_exchange_failed");
+    return loginError(
+      origin,
+      error.code ?? (error.status ? `auth_http_${error.status}` : "code_exchange_failed"),
+    );
   }
 
   return loginError(origin, "invalid_link");
