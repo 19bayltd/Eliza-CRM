@@ -28,7 +28,10 @@ test.describe("unauthenticated access", () => {
     await page.getByLabel("Email").fill("nobody@example.com");
     await page.getByLabel("Password").fill("definitely-wrong-password");
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByRole("alert")).toContainText("Invalid email or password");
+    // Next.js's route announcer is also role=alert — target ours by text.
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Invalid email or password" }),
+    ).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
   });
 

@@ -158,7 +158,7 @@ governance docs, production deployment plan.
 | Documentation updated | Pass | This doc + matrices + module docs + ADRs |
 | Rollback documented | Pass | Deployment plan |
 | Production untouched | Pass | Zero operations against pbyjyamqmbotixahkknu |
-| E2E executed against running app | **Deferred** | Specs written; execution requires staging runtime credentials (CI/owner) |
+| E2E executed against running app | Pass (unauthenticated set) | 4/4 specs vs local app on staging Supabase; authenticated spec env-gated (service key) |
 | Invitation email loop end-to-end | **Deferred** | Requires SMTP/mailbox on staging |
 
 ## Open Questions
@@ -214,6 +214,13 @@ Staging RLS probes (scripts/rls-verification.sql):
   audit append-only: UPDATE blocked, DELETE blocked (admin connection);
     selftest row retained
   test users removed after verification (no residue)
+
+E2E (2026-07-31, local dev server → STAGING Supabase, pre-installed
+  Chromium): 4/4 unauthenticated specs passed — protected-route
+  redirects, login rendering, invalid-credentials error against real
+  staging auth, non-enumerating password reset. Authenticated-flow spec
+  remains env-gated (needs a full environment with the service-role key,
+  which this sandbox intentionally lacks).
 
 Advisors (security): 1 INFO — audit_log RLS-no-policy (intended deny-all).
 Secrets: service-role key only in server-only module + operator script;

@@ -10,6 +10,11 @@ export default defineConfig({
   use: {
     baseURL: process.env.BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
+    // Sandbox/CI images may pre-install a Chromium build that differs from
+    // the @playwright/test pin; point at it via CHROMIUM_PATH when set.
+    launchOptions: process.env.CHROMIUM_PATH
+      ? { executablePath: process.env.CHROMIUM_PATH }
+      : undefined,
   },
   webServer: process.env.BASE_URL
     ? undefined

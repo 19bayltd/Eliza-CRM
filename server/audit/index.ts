@@ -51,7 +51,22 @@ export async function writeAudit(
 ): Promise<void> {
   const { critical = true } = opts;
   const meta = await requestMetadata();
-  const admin = createAdminSupabase();
+
+  let admin: ReturnType<typeof createAdminSupabase>;
+  try {
+    admin = createAdminSupabase();
+  } catch {
+    // Misconfigured server environment (e.g. missing service-role key).
+    // Critical writes must still abort the operation; non-critical events
+    // are dropped with a console trace rather than crashing the request.
+    console.error(
+      `audit write failed (admin client unavailable): ${event.module}.${event.action}`,
+    );
+    if (critical) {
+      throw internal("Operation aborted: audit trail could not be written");
+    }
+    return;
+  }
 
   const { error } = await admin.from("audit_log").insert({
     module: event.module,
