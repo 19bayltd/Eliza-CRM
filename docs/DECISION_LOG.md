@@ -20,6 +20,7 @@ non-architectural decisions.
 | D-011 | 2026-07-31 | Global role grants modeled as `user_roles.company_id = null`; they widen role applicability but never bypass explicit company scopes; granting them requires global authority | Architecture | `modules/permissions/PERMISSIONS_SPEC.md` |
 | D-012 | 2026-07-31 | Audit writes are critical for sensitive mutations (failure aborts the operation); non-critical only for high-volume auth telemetry | Architecture | `server/audit/index.ts`; `modules/audit/` |
 | D-013 | 2026-07-31 | Owner bootstrap is a one-time service-key script (`scripts/bootstrap-owner.mjs`) that refuses to run once any owner exists | Security | `modules/authentication/` |
+| D-014 | 2026-07-31 | Owner bootstrap executed via guarded SQL over the authenticated Supabase management channel (staging only) instead of running the service-key script or deploying a temporary bootstrap endpoint: no secrets in the implementation environment, no public attack surface, empty password hash so account entry is only via the owner's email reset flow; same refuse-if-owner-exists guard | Security | `audits/SECURITY_AUDIT_LOG.md`; audit_log `user.bootstrap_owner` |
 
 ## Recording rules
 

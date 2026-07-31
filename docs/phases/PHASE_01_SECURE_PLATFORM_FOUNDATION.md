@@ -160,7 +160,7 @@ governance docs, production deployment plan.
 | Production untouched | Pass | Zero operations against pbyjyamqmbotixahkknu |
 | E2E executed against running app | Pass (unauthenticated set, local) | 4/4 middleware/UI specs on the merged commit; staging round-trip not provable from sandbox (network policy) |
 | Live deployment verified (eliza-crm.vercel.app) | **Blocked** | Sandbox network policy denies all Vercel + Supabase REST egress (curl, Node, WebFetch all 403); zero DB-side evidence of live activity exists yet |
-| Owner account bootstrapped and working | **Fail (pending owner action)** | Staging has 0 auth users, 0 owner role rows, 0 sessions, 0 real audit events — `scripts/bootstrap-owner.mjs` has not been run |
+| Owner account bootstrapped and working | Pass (bootstrapped; first sign-in pending) | 2026-07-31 guarded management-channel SQL bootstrap: auth user + active profile "Imran" + global owner role + scopes on all 3 companies + audit row verified; password intentionally unset — owner completes /forgot-password on the live app; re-run guard verified |
 | Invitation email loop end-to-end | **Deferred** | Requires SMTP/mailbox on staging |
 
 ## Open Questions

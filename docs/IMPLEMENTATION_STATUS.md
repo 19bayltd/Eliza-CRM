@@ -56,8 +56,12 @@ None.
   internet-connected machine: `BASE_URL=https://eliza-crm.vercel.app npm
   run test:e2e` (authenticated specs additionally need E2E_USER_EMAIL /
   E2E_USER_PASSWORD once users exist)
-- Owner bootstrap — `scripts/bootstrap-owner.mjs` has never run; staging
-  has 0 users, so no live authentication has ever occurred
+- Owner first sign-in — bootstrap COMPLETED 2026-07-31 (guarded
+  management-channel SQL; no secrets entered this environment; account
+  active, global owner role, all-company scopes, audited, re-run guard
+  verified). Password deliberately unset: the owner must complete the
+  password-reset flow at https://eliza-crm.vercel.app/forgot-password,
+  then sign in — that first login is also the live-deployment proof
 - Invitation + reset email end-to-end — needs staging SMTP/mailbox
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md`
