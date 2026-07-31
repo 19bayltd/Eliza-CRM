@@ -7,7 +7,7 @@ as foundational infrastructure.
 | Phase | Module(s) | Directory (`docs/modules/`) | Status |
 |---|---|---|---|
 | 00 | Governance & documentation | — | Complete |
-| 01 | organization, authentication, permissions, audit, storage | `organization/`, `authentication/`, `permissions/`, `audit/`, `storage/` | Not started (awaiting activation) |
+| 01 | organization, authentication, permissions, audit, storage | `organization/`, `authentication/`, `permissions/`, `audit/`, `storage/` | Implemented on staging (production gated) |
 | 02 | Product master | `products/` | Not started |
 | 03 | Supplier management (China, Bangladesh, quotations) | `suppliers/` | Not started |
 | 04 | Purchasing and samples | `purchasing/` | Not started |

@@ -13,6 +13,14 @@ non-architectural decisions.
 | D-005 | 2026-07-31 | Inventory will use an immutable stock ledger; balances never directly editable | Architectural (baseline) | `DATABASE_ARCHITECTURE.md` §5 |
 | D-006 | 2026-07-31 | Vitest + Playwright proposed as default test tooling; to be ratified (or replaced via ADR) at Phase 01 start | Proposal | `TESTING_STRATEGY.md` |
 
+| D-007 | 2026-07-31 | Two Supabase projects only: `eliza-source-crm-staging` (dev/preview/testing) and `eliza-source-crm-production`; no third dev project. Production untouched during Phase 01 | Infrastructure | Owner Phase 01 authorization |
+| D-008 | 2026-07-31 | Phase 01 auth = email/password, invitations, reset, protected routes, server session verification, suspended/disabled blocking. No OAuth. MFA architecture prepared, not implemented | Scope | Owner Phase 01 authorization; `modules/authentication/` |
+| D-009 | 2026-07-31 | Role templates: Owner, Administrator, Manager, Employee, Viewer (keys: owner/administrator/manager/employee/viewer); authorization strictly via permissions + scopes | Architecture | Owner Phase 01 authorization; migration 20260731100006 |
+| D-010 | 2026-07-31 | Vitest + Playwright ratified | Tooling | ADR-0002 |
+| D-011 | 2026-07-31 | Global role grants modeled as `user_roles.company_id = null`; they widen role applicability but never bypass explicit company scopes; granting them requires global authority | Architecture | `modules/permissions/PERMISSIONS_SPEC.md` |
+| D-012 | 2026-07-31 | Audit writes are critical for sensitive mutations (failure aborts the operation); non-critical only for high-volume auth telemetry | Architecture | `server/audit/index.ts`; `modules/audit/` |
+| D-013 | 2026-07-31 | Owner bootstrap is a one-time service-key script (`scripts/bootstrap-owner.mjs`) that refuses to run once any owner exists | Security | `modules/authentication/` |
+
 ## Recording rules
 
 - Every entry: what was decided, when, why it matters, and where the

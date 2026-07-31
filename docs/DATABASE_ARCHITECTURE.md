@@ -90,9 +90,21 @@ Each module documents its tables and relationships in its module spec under
 shared/core schema. It is updated whenever migrations change shared
 structures.
 
-## 10. Current schema state
+## 10. Current schema state (Phase 01)
 
-**No migrations exist yet.** The core schema (companies, branches,
-warehouses, departments, user profiles, roles, permissions, audit log,
-storage metadata) will be designed and created in Phase 01 and documented
-here when implemented.
+Seven migrations in `supabase/migrations/`, applied to staging
+(`eliza-source-crm-staging`); production apply is gated on the Phase 01
+production deployment plan:
+
+| Migration | Contents |
+|---|---|
+| 20260731100001_core_organization | companies, branches, warehouses, departments; `app` schema + updated_at trigger; client write privileges revoked |
+| 20260731100002_identity_access | account_status enum, user_profiles (+auth trigger), roles, permissions, role_permissions, user_roles (global grants via null company), 4 scope tables |
+| 20260731100003_audit_log | append-only audit_log (UPDATE/DELETE blocked by trigger for every role); client access fully revoked |
+| 20260731100004_storage_foundation | private `system-exports` bucket + file_metadata |
+| 20260731100005_rls_policies | `app.is_active_user` / `has_company_access` / `has_permission` (SECURITY DEFINER, STABLE); RLS enabled on all 15 tables; scoped SELECT policies; audit_log deny-all |
+| 20260731100006_reference_data | 16-permission catalog, 5 role templates, role-permission mappings (idempotent) |
+| 20260731100007_app_schema_grants | `usage on schema app` to authenticated (found by staging RLS verification) |
+
+Seed: `supabase/seed/staging_seed.sql` — the three approved companies
+(idempotent by code; no hard-coded UUIDs).

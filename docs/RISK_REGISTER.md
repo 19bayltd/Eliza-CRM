@@ -2,7 +2,7 @@
 
 | Risk ID | Description | Affected module | Probability | Impact | Severity | Mitigation | Owner | Status | Review date |
 |---|---|---|---|---|---|---|---|---|---|
-| R-001 | Cross-company data leakage | All company-scoped modules | Medium | Critical | Critical | RLS on all scoped tables; server-side scope checks; dedicated isolation test suite (`TESTING_STRATEGY.md` §3) | Engineering | Open | Phase 01 completion |
+| R-001 | Cross-company data leakage | All company-scoped modules | Low | Critical | High | RLS on all 15 scoped tables + staging isolation probes passed (Phase 01 evidence); per-phase isolation tests continue | Engineering | Mitigated (monitored) | Each phase completion |
 | R-002 | Incorrect inventory balance | inventory | Medium | High | High | Immutable stock ledger; balances derived from ledger; atomic transactions; negative-stock block | Engineering | Open | Phase 05 start |
 | R-003 | Duplicate barcode | barcode, inventory, pos | Medium | High | High | Unique constraints on barcodes; import duplicate detection | Engineering | Open | Phase 06 start |
 | R-004 | Partial POS transaction | pos, inventory, finance | Low | Critical | High | Single-transaction POS completion with full rollback; rollback tests | Engineering | Open | Phase 07 start |
