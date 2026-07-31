@@ -6,9 +6,13 @@ Phase 01 — Secure Platform Foundation
 
 ## Current Status
 
-Implemented on staging — awaiting owner actions (Vercel/CI setup, e2e run,
-production deployment approval). Phase 02 must NOT begin without explicit
-owner authorization.
+Merged to `main` (`1021a0e`, PR #1) and deployed to
+https://eliza-crm.vercel.app against staging Supabase. NOT yet "Complete
+in Staging": the owner bootstrap has never run (staging has zero users),
+and live-deployment verification could not be executed from the
+implementation environment (its network policy denies all egress to
+Vercel and Supabase REST endpoints). Phase 02 must NOT begin without
+explicit owner authorization.
 
 ## Approved Scope
 
@@ -47,9 +51,14 @@ None.
 
 ## Blocked Work
 
-- E2E execution + integration suite in CI — needs owner-provided staging
-  credentials in the CI/Vercel environment
-- Invitation email end-to-end — needs staging SMTP/mailbox
+- Live verification of https://eliza-crm.vercel.app — blocked from the
+  implementation sandbox by network policy; run the e2e suite from any
+  internet-connected machine: `BASE_URL=https://eliza-crm.vercel.app npm
+  run test:e2e` (authenticated specs additionally need E2E_USER_EMAIL /
+  E2E_USER_PASSWORD once users exist)
+- Owner bootstrap — `scripts/bootstrap-owner.mjs` has never run; staging
+  has 0 users, so no live authentication has ever occurred
+- Invitation + reset email end-to-end — needs staging SMTP/mailbox
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md`
 
@@ -83,6 +92,10 @@ Production untouched.
 
 ## Phase Completion Verdict
 
-**Partially Complete** — all criteria verifiable in this environment pass
-with evidence; deferred items are owner/CI-side (e2e run, email loop,
-production deploy). See the phase document for the itemized table.
+**Partially Complete — not yet "Phase 01 Complete in Staging".**
+All code-, schema-, and database-level criteria pass with evidence
+(including post-merge re-verification of `main` and a client-bundle
+secret scan). The gate to "Complete in Staging" is: owner bootstrap run,
+live e2e pass against https://eliza-crm.vercel.app, and email loop
+confirmation. Itemized table + live-verification addendum in
+`phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md`.

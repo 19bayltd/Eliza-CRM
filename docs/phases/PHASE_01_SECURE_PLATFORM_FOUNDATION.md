@@ -158,7 +158,9 @@ governance docs, production deployment plan.
 | Documentation updated | Pass | This doc + matrices + module docs + ADRs |
 | Rollback documented | Pass | Deployment plan |
 | Production untouched | Pass | Zero operations against pbyjyamqmbotixahkknu |
-| E2E executed against running app | Pass (unauthenticated set) | 4/4 specs vs local app on staging Supabase; authenticated spec env-gated (service key) |
+| E2E executed against running app | Pass (unauthenticated set, local) | 4/4 middleware/UI specs on the merged commit; staging round-trip not provable from sandbox (network policy) |
+| Live deployment verified (eliza-crm.vercel.app) | **Blocked** | Sandbox network policy denies all Vercel + Supabase REST egress (curl, Node, WebFetch all 403); zero DB-side evidence of live activity exists yet |
+| Owner account bootstrapped and working | **Fail (pending owner action)** | Staging has 0 auth users, 0 owner role rows, 0 sessions, 0 real audit events — `scripts/bootstrap-owner.mjs` has not been run |
 | Invitation email loop end-to-end | **Deferred** | Requires SMTP/mailbox on staging |
 
 ## Open Questions
@@ -215,21 +217,56 @@ Staging RLS probes (scripts/rls-verification.sql):
     selftest row retained
   test users removed after verification (no residue)
 
-E2E (2026-07-31, local dev server → STAGING Supabase, pre-installed
-  Chromium): 4/4 unauthenticated specs passed — protected-route
-  redirects, login rendering, invalid-credentials error against real
-  staging auth, non-enumerating password reset. Authenticated-flow spec
-  remains env-gated (needs a full environment with the service-role key,
-  which this sandbox intentionally lacks).
+E2E (2026-07-31, local server, pre-installed Chromium): 4/4
+  unauthenticated specs passed — protected-route redirects, login
+  rendering, invalid-credentials error path, non-enumerating password
+  reset. CORRECTION (recorded 2026-07-31, post-merge): the sandbox
+  network policy blocks egress to Supabase REST/auth, so these specs
+  validate middleware and UI error handling only — they do NOT prove a
+  round-trip to staging auth. Authenticated-flow spec remains env-gated
+  (needs service-role key runtime).
 
 Advisors (security): 1 INFO — audit_log RLS-no-policy (intended deny-all).
 Secrets: service-role key only in server-only module + operator script;
   no NEXT_PUBLIC_ leakage; .env* gitignored; no client import of admin.
 ```
 
+## Live Verification Addendum (2026-07-31, post-merge)
+
+Merged to `main` at `1021a0e` (PR #1); merge tree byte-identical to
+`f243dc3` (verified: empty diff). Live URL reported as
+https://eliza-crm.vercel.app.
+
+Verified from this environment:
+- Merged `main` locally: lint 0/0, typecheck clean, unit 27/27,
+  production build OK, e2e 4/4 (middleware/UI layer).
+- Client-bundle secret scan of the production build of `main`: no
+  `sb_secret` / service-role / `SUPABASE_SERVICE_ROLE_KEY` patterns in
+  any `.next/static` chunk.
+- Staging DB via management API: schema/seed/reference data intact;
+  `system-exports` still private.
+- Production project: still zero migrations, zero tables, zero users.
+
+NOT verifiable from this environment (network policy denies all egress to
+Vercel and Supabase REST/auth endpoints — curl, Node fetch, and WebFetch
+all rejected): any HTTP interaction with the live deployment, live
+authentication/reset/invitation flows, live admin pages, live audit
+writes, live storage authorization, the deployed bundle, and the Vercel
+project's environment configuration.
+
+Independent hard finding: staging contains **no users at all** — the
+owner bootstrap has never run, so no one has yet authenticated against
+the live deployment; live-flow criteria are not just unverified from
+here, they cannot yet be true for anyone.
+
 ## Final Phase Verdict
 
-**Partially Complete** — all in-sandbox completion criteria pass with
-evidence; two items are deferred to owner/CI execution (e2e run against a
-live staging deployment; invitation email loop), and production deployment
-awaits owner approval. No unresolved critical issues.
+**Partially Complete** — code, schema, security controls, and all
+sandbox-verifiable criteria pass with evidence; live-deployment
+verification is blocked by this environment's network policy and by the
+not-yet-run owner bootstrap. Remaining to reach "Complete in Staging":
+(1) run `scripts/bootstrap-owner.mjs` against staging, (2) execute the
+live e2e suite against https://eliza-crm.vercel.app from a machine with
+internet access (`BASE_URL=https://eliza-crm.vercel.app CHROMIUM/creds
+per README`), (3) confirm invitation + reset emails end-to-end. No
+unresolved critical issues.
