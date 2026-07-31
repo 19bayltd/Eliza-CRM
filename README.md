@@ -14,11 +14,22 @@ Development is **document-driven** and **phase-controlled**:
 
 ## Current state
 
-**Phase 00 — Discovery and Governance: Complete.** The full governance
-documentation set exists; no application code has been written yet.
-Phase 01 (Secure Platform Foundation) is specified and awaiting owner
-activation — see
+**Phase 01 — Secure Platform Foundation: implemented on staging.**
+Auth, multi-company organization structure, permissions, append-only
+audit, private storage, and the admin area are live against the staging
+Supabase project. Production deployment is prepared and owner-gated — see
+[`docs/releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md`](docs/releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md)
+and the phase report in
 [`docs/phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md`](docs/phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md).
+
+### Getting started (development — staging Supabase)
+
+```bash
+npm install
+cp .env.example .env.local   # fill with STAGING values (names only in the example)
+npm run dev                  # http://localhost:3000
+npm run verify               # lint + typecheck + unit tests + build
+```
 
 ## Approved stack
 

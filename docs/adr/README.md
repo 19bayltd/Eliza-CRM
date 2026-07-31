@@ -9,6 +9,7 @@ owner approval before its status becomes **Approved**.
 | ADR | Title | Status | Date |
 |---|---|---|---|
 | [ADR-0001](ADR-0001-technology-stack.md) | Technology stack | Approved | 2026-07-31 |
+| [ADR-0002](ADR-0002-test-tooling.md) | Test tooling: Vitest and Playwright | Approved | 2026-07-31 |
 
 ## Process
 

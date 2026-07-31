@@ -44,23 +44,31 @@ e.g. `auth.user.login_failed`, `organization.company.created`.
 
 ## 4. Registered events
 
-### Phase 01 — planned (finalized in the Phase 01 spec)
+### Phase 01 — IMPLEMENTED (services in server/audit, server/services)
 
 | Event | Trigger |
 |---|---|
 | `auth.user.invited` | User invitation issued |
-| `auth.user.activated` | Invitation accepted / account activated |
-| `auth.user.login_succeeded` | Successful sign-in |
-| `auth.user.login_failed` | Failed sign-in attempt |
-| `auth.user.suspended` / `auth.user.reinstated` | Account state change |
+| `auth.user.activated` | Invitation accepted (invited → active) |
+| `auth.user.login_succeeded` | Successful sign-in (non-critical write) |
+| `auth.user.login_failed` | Failed sign-in attempt (non-critical) |
+| `auth.user.login_blocked` | Sign-in attempt on a non-active account |
+| `auth.user.signed_out` | Sign-out (non-critical) |
+| `auth.user.password_reset_requested` | Password reset requested |
+| `auth.user.password_changed` | Password updated |
+| `auth.user.status_changed` | Any account-state transition (previous/new + reason) |
 | `auth.user.role_assigned` / `auth.user.role_revoked` | Role change |
-| `auth.user.scope_granted` / `auth.user.scope_revoked` | Company/branch/warehouse/department grant change |
+| `auth.user.scope_granted` / `auth.user.scope_revoked` | Company scope grant change |
+| `auth.user.bootstrap_owner` | One-time owner bootstrap |
 | `organization.company.created` / `.updated` / `.archived` | Company lifecycle |
-| `organization.branch.created` / `.updated` / `.archived` | Branch lifecycle |
-| `organization.warehouse.created` / `.updated` / `.archived` | Warehouse lifecycle |
-| `organization.department.created` / `.updated` / `.archived` | Department lifecycle |
+| `organization.branch.created` / `.archived` | Branch lifecycle |
+| `organization.warehouse.created` / `.archived` | Warehouse lifecycle |
+| `organization.department.created` / `.archived` | Department lifecycle |
 | `storage.file.uploaded` / `.downloaded` / `.deleted` | Private file operations |
-| `audit.log.exported` | Audit log export |
+| `audit.append_only_selftest` | Verification runs |
+
+Registered for later phases: `audit.log.exported` (arrives with export
+functionality). Update events for org children arrive with edit UIs.
 
 ### Later phases
 
@@ -69,5 +77,7 @@ phase activates.
 
 ## 5. Status
 
-Catalog structure and Phase 01 planned events defined in Phase 00.
-Implementation (table, service, tests) is Phase 01 scope.
+Implemented in Phase 01: append-only `audit_log` table (UPDATE/DELETE
+blocked for every role — verified on staging), central `server/audit`
+service with sanitization and critical-write semantics, admin viewer gated
+by `audit.log.view`, and tests.

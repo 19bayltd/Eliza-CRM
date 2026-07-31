@@ -4,9 +4,14 @@
 
 | Environment | App | Database | Purpose |
 |---|---|---|---|
-| Development | Vercel dev / local | Supabase development project | Daily work |
-| Preview/Staging | Vercel preview | Supabase staging project (where required) | Review + e2e |
-| Production | Vercel production | Supabase production project | Live |
+| Local development | `next dev` | `eliza-source-crm-staging` | Daily work |
+| Preview | Vercel preview | `eliza-source-crm-staging` | Review, integration + e2e |
+| Production | Vercel production | `eliza-source-crm-production` | Live (owner-gated) |
+
+Per owner decision D-007 there is no separate development Supabase
+project; staging serves development, migration testing, auth/permission/
+RLS/storage/audit testing, and preview deployments. Preview never connects
+to production Supabase.
 
 Environment variables are managed in Vercel/Supabase configuration.
 Secrets never enter source control; the browser never receives
@@ -44,6 +49,8 @@ interim manual verification scheduled once production data exists
 
 ## 5. Status
 
-Policy defined in Phase 00. Environment provisioning (Vercel projects,
-Supabase projects, CI) is Phase 01 scope and requires owner-supplied
-credentials at that time.
+Supabase staging carries all Phase 01 migrations + seed. Production is
+untouched; the gated first production deployment follows
+`docs/releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md` (owner approval
+required). Vercel project creation and CI wiring remain owner-side actions
+documented there.
