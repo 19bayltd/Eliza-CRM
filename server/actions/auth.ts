@@ -130,15 +130,29 @@ export async function forgotPasswordAction(
   }
   const env = publicEnv();
   const supabase = await createServerSupabase();
-  // Same response whether or not the email exists — no account enumeration.
-  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=/set-password`,
-  });
+  // The user always gets the same response whether or not the email exists
+  // (no account enumeration) — but the AUDIT record must tell the truth:
+  // acceptance by the Auth API is recorded as a handoff status, never as
+  // proof of delivery, and provider errors are recorded as failures.
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    parsed.data.email,
+    {
+      redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=/set-password`,
+    },
+  );
   await writeAudit(
     {
       module: "auth",
       action: "user.password_reset_requested",
       actorEmail: parsed.data.email,
+      result: error ? "failure" : "success",
+      failureReason: error
+        ? `auth_api_error:${error.code ?? error.status ?? "unknown"}`
+        : null,
+      newValue: {
+        provider_handoff: error ? "rejected_by_auth_api" : "accepted_by_auth_api",
+        delivery_confirmed: false,
+      },
     },
     { critical: false },
   );

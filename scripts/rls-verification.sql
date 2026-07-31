@@ -4,10 +4,14 @@
 -- docs/phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md (Verification Evidence).
 --
 -- Section 1 — setup: synthetic users (empty password hash: can never sign in)
-insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
+-- NOTE: GoTrue requires its token columns to be EMPTY STRINGS, not NULL —
+-- SQL-inserted users without them break /recover and other Auth endpoints
+-- with 'converting NULL to string is unsupported' (learned 2026-07-31).
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, email_change, email_change_token_new, email_change_token_current, phone_change, phone_change_token, reauthentication_token)
 values
-  ('11111111-1111-4111-8111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'rls-test-a@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"RLS Test A"}'),
-  ('22222222-2222-4222-8222-222222222222', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'rls-test-b@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"RLS Test B"}')
+  ('11111111-1111-4111-8111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'rls-test-a@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"RLS Test A"}', '', '', '', '', '', '', '', ''),
+  ('22222222-2222-4222-8222-222222222222', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'rls-test-b@example.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"full_name":"RLS Test B"}', '', '', '', '', '', '', '', '')
 on conflict (id) do nothing;
 
 update public.user_profiles set account_status = 'active'

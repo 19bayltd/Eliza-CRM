@@ -54,7 +54,7 @@ e.g. `auth.user.login_failed`, `organization.company.created`.
 | `auth.user.login_failed` | Failed sign-in attempt (non-critical) |
 | `auth.user.login_blocked` | Sign-in attempt on a non-active account |
 | `auth.user.signed_out` | Sign-out (non-critical) |
-| `auth.user.password_reset_requested` | Password reset requested |
+| `auth.user.password_reset_requested` | Reset requested; `result` reflects the Auth API handoff (accepted/rejected) and `new_value.delivery_confirmed` is always `false` — this event NEVER proves email delivery |
 | `auth.user.password_changed` | Password updated |
 | `auth.user.status_changed` | Any account-state transition (previous/new + reason) |
 | `auth.user.role_assigned` / `auth.user.role_revoked` | Role change |
