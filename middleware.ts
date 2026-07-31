@@ -11,6 +11,17 @@ const PUBLIC_PATHS = ["/login", "/forgot-password", "/auth"];
  * only guarantees "no session, no app".
  */
 export async function middleware(request: NextRequest) {
+  // Normalize duplicate slashes (e.g. "//auth/confirm" from an APP_URL
+  // configured with a trailing slash). Without this, path checks below
+  // misclassify the auth callback and bounce recovery links to /login,
+  // losing the one-time code (live incident, 2026-07-31). Query params
+  // are preserved; fragments survive client-side.
+  if (/\/{2,}/.test(request.nextUrl.pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = request.nextUrl.pathname.replace(/\/{2,}/g, "/");
+    return NextResponse.redirect(url);
+  }
+
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -32,6 +32,18 @@ describe("env validation", () => {
     expect(publicEnv().NEXT_PUBLIC_APP_URL).toBe("http://localhost:3000");
   });
 
+  it("strips trailing slashes so auth redirect URLs never get '//' paths", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co/";
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_0123456789";
+    process.env.NEXT_PUBLIC_APP_URL = "https://eliza-crm.vercel.app/";
+    const env = publicEnv();
+    expect(env.NEXT_PUBLIC_APP_URL).toBe("https://eliza-crm.vercel.app");
+    expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe("https://example.supabase.co");
+    expect(`${env.NEXT_PUBLIC_APP_URL}/auth/confirm`).toBe(
+      "https://eliza-crm.vercel.app/auth/confirm",
+    );
+  });
+
   it("rejects missing or malformed public variables, naming only the variable", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "not-a-url";
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_0123456789";

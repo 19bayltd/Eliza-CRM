@@ -8,9 +8,19 @@ import { z } from "zod";
  */
 
 const publicSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_URL: z
+    .string()
+    .url()
+    .transform((u) => u.replace(/\/+$/, "")),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(20),
-  NEXT_PUBLIC_APP_URL: z.string().url(),
+  // Trailing slashes are stripped: a value like "https://app.example.com/"
+  // otherwise produces "//auth/confirm" redirect paths, which break the
+  // middleware public-path check and the auth callback (live incident,
+  // 2026-07-31).
+  NEXT_PUBLIC_APP_URL: z
+    .string()
+    .url()
+    .transform((u) => u.replace(/\/+$/, "")),
 });
 
 const serverSchema = z.object({
