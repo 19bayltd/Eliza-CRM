@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
 
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/auth"];
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/auth", "/api/diag"];
 
 /**
  * Protected-route middleware: refreshes the Supabase session cookie and

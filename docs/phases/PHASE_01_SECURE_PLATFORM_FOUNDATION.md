@@ -160,7 +160,9 @@ governance docs, production deployment plan.
 | Production untouched | Pass | Zero operations against pbyjyamqmbotixahkknu |
 | E2E executed against running app | Pass (unauthenticated set, local) | 4/4 middleware/UI specs on the merged commit; staging round-trip not provable from sandbox (network policy) |
 | Live deployment verified (eliza-crm.vercel.app) | **Blocked** | Sandbox network policy denies all Vercel + Supabase REST egress (curl, Node, WebFetch all 403); zero DB-side evidence of live activity exists yet |
-| Owner account bootstrapped and working | Pass (bootstrapped; first sign-in pending) | 2026-07-31 guarded management-channel SQL bootstrap: auth user + active profile "Imran" + global owner role + scopes on all 3 companies + audit row verified; password intentionally unset — owner completes /forgot-password on the live app; re-run guard verified |
+| Owner account bootstrapped and working | Partial — bootstrapped, NOT yet working | Account active with global owner role + all scopes, but password never set and zero application sign-ins (verified 2026-07-31 ~23:00 UTC: encrypted_password empty, no login_succeeded audit events, 3 GoTrue sessions from fragment-based recovery links the server never received) |
+| Live app→Supabase connectivity since env edits | **Fail (blocking)** | API gateway: zero app-originated (node UA) Supabase requests after 20:20:51 UTC; recent recovery emails were dashboard-sent (mgmt-api UA); interstitial POST verifyOtp never reached Supabase — masked as otp_expired pre-5c9dafa. Probe deployed at /api/diag |
+| Invitation flow live | **Not started** | Staging contains exactly one user |
 | Invitation email loop end-to-end | **Deferred** | Requires SMTP/mailbox on staging |
 
 ## Open Questions

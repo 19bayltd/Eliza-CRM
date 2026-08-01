@@ -6,13 +6,19 @@ Phase 01 — Secure Platform Foundation
 
 ## Current Status
 
-Merged to `main` (`1021a0e`, PR #1) and deployed to
-https://eliza-crm.vercel.app against staging Supabase. NOT yet "Complete
-in Staging": the owner bootstrap has never run (staging has zero users),
-and live-deployment verification could not be executed from the
-implementation environment (its network policy denies all egress to
-Vercel and Supabase REST endpoints). Phase 02 must NOT begin without
-explicit owner authorization.
+NOT "Phase 01 Complete in Staging". Live verification 2026-07-31 (via
+Supabase management channel; the sandbox still has no HTTP route to the
+app) found: the owner account exists, is active, and holds the global
+owner role + all-company scopes, BUT no password has ever been set
+(encrypted_password empty), no application sign-in has ever occurred
+(zero login_succeeded audit events), no user has ever been invited (one
+user total), and — decisively — the API gateway shows ZERO
+app-originated Supabase requests since 20:20:51 UTC, i.e. since the
+~21:00 Vercel env-var edits the deployed app has not reached Supabase at
+all (recent recovery emails came from the Supabase dashboard, not the
+app). Prime suspect: NEXT_PUBLIC_SUPABASE_URL misconfigured in Vercel.
+A secret-free connectivity probe is deployed at /api/diag to settle it.
+Phase 02 must NOT begin without explicit owner authorization.
 
 ## Approved Scope
 
@@ -56,12 +62,18 @@ None.
   internet-connected machine: `BASE_URL=https://eliza-crm.vercel.app npm
   run test:e2e` (authenticated specs additionally need E2E_USER_EMAIL /
   E2E_USER_PASSWORD once users exist)
-- Owner first sign-in — bootstrap COMPLETED 2026-07-31 (guarded
-  management-channel SQL; no secrets entered this environment; account
-  active, global owner role, all-company scopes, audited, re-run guard
-  verified). Password deliberately unset: the owner must complete the
-  password-reset flow at https://eliza-crm.vercel.app/forgot-password,
-  then sign in — that first login is also the live-deployment proof
+- App→Supabase connectivity — gateway logs show no app-originated
+  Supabase traffic since 20:20:51 UTC (post env-edit). Owner action:
+  open https://eliza-crm.vercel.app/api/diag and confirm
+  supabase_host = yhrdyyvayistqqwxawqr.supabase.co and
+  supabase_auth_health = http_200; if not, fix
+  NEXT_PUBLIC_SUPABASE_URL in Vercel and redeploy
+- Owner first sign-in — account bootstrapped but password still unset
+  (verified: encrypted_password empty, zero login_succeeded events).
+  After /api/diag is green: one reset from the APP's /forgot-password
+  page (not the dashboard) -> /auth/continue -> Continue -> /set-password
+- Invitation flow, invited-user activation, role/scope verification —
+  not started (staging has exactly one user)
 - Invitation + reset email end-to-end — needs staging SMTP/mailbox
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md`
