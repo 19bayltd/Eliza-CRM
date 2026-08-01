@@ -19,14 +19,18 @@ function hostOf(value: string | undefined): string {
 
 export async function GET() {
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/+$/, "");
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
   let authHealth: string;
   if (!supabaseUrl) {
     authHealth = "skipped_no_url";
   } else {
     try {
+      // The gateway requires the (public) apikey even on the health
+      // endpoint; without it a reachable project answers 401.
       const res = await fetch(`${supabaseUrl}/auth/v1/health`, {
         cache: "no-store",
         signal: AbortSignal.timeout(5000),
+        headers: publishableKey ? { apikey: publishableKey } : undefined,
       });
       authHealth = `http_${res.status}`;
     } catch (err) {
