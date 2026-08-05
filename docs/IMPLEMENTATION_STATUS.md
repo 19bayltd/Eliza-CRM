@@ -7,15 +7,26 @@ D-016)
 
 ## Current Status
 
-**Phase 02 implemented — pending live verification.** All Phase 02 scope
-is built, applied to staging, unit-tested (47/47), RLS-probed on staging
-with recorded evidence, advisor-checked, and adversarially reviewed.
-Remaining before "Phase 02 Complete in Staging": the owner-side live
-manual script (`modules/products/PRODUCTS_TEST_PLAN.md`) against the
-deployed app, then the completion declaration. Defaults chosen at
-activation (SKU format, nested categories, intelligence audience,
-private image buckets, role mappings) are recorded as D-017 and may be
-overridden by the owner.
+**Phase 02 Complete in Staging** (declared 2026-08-05 by owner
+instruction, D-018). All Phase 02 scope is built, applied to staging,
+unit-tested (47/47), RLS-probed with recorded evidence, advisor-checked,
+and adversarially reviewed (2 defects found and fixed).
+
+Two criteria are **owner-waived rather than passed**: live manual
+verification and the live e2e run. Neither was performed — staging holds
+zero products and zero `products` audit events, so deployed page
+rendering, form wiring, and server-action round-trips for the product
+module are unproven. Automated specs (`tests/e2e/products.spec.ts`, 5
+specs) are written and ready; one command retires the waiver:
+
+```
+BASE_URL=https://eliza-crm.vercel.app E2E_USER_EMAIL=<admin>
+E2E_USER_PASSWORD=<password> npm run test:e2e
+```
+
+Defaults chosen at activation (SKU format, nested categories,
+intelligence audience, private image buckets, role mappings) are
+recorded as D-017 and may be overridden by the owner.
 
 Phase 01 is **Complete in Staging** (declared 2026-08-05, D-015; the one
 waived criterion was satisfied by evidence the same day — owner
@@ -64,17 +75,19 @@ Phase 02 (2026-08-05):
 
 ## Work in Progress
 
-None — awaiting owner live verification of Phase 02.
+None.
 
 ## Blocked Work
 
-- Phase 02 completion — owner live manual script
-  (`modules/products/PRODUCTS_TEST_PLAN.md`) after the next deploy
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md` (now would include
   Phase 02 migrations)
 
 ## Post-Completion Follow-ups
+
+- **Retire the Phase 02 waiver (D-018)** — run the product e2e suite or
+  the manual script (`modules/products/PRODUCTS_TEST_PLAN.md`) against
+  the deployment; evidence gets appended to the phase document
 
 - Administrator test account (nkfhhdndjdh@gmail.com) password rotation —
   operator agreed to change it (displayed during e2e testing)
@@ -123,6 +136,7 @@ Production deployment not authorized.
 ## Phase Completion Verdict
 
 Phase 01: **Complete in Staging** (D-015; all criteria evidence-backed,
-no waivers outstanding). Phase 02: **Implemented — pending live
-verification**; itemized criteria table in
+no waivers outstanding). Phase 02: **Complete in Staging** (D-018; all
+criteria evidence-backed except live manual verification and the live
+e2e run, both owner-waived and outstanding). Itemized criteria table in
 `phases/PHASE_02_PRODUCT_MASTER.md`.

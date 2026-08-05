@@ -146,8 +146,8 @@ decision log D-016/D-017), verification evidence below, this report.
 | Adversarial review executed | Pass | Review of the full Phase 02 diff (authorization, RLS parity, confidentiality, correctness); 2 defects found and fixed — see Review Findings below |
 | Documentation updated | Pass | Module set + cross-cutting docs + decisions |
 | Production untouched | Pass | Re-verified 2026-08-05: 0 tables, 0 users |
-| Live manual verification (owner) | **Pending** | Script in PRODUCTS_TEST_PLAN.md — run after deploy |
-| Live e2e against deployment | **Pending** | Existing suite must stay green; product specs to be added with live evidence |
+| Live manual verification (owner) | **Waived by owner (D-018)** | Owner declared completion 2026-08-05 without performing the live script. Staging shows zero products/catalog rows and zero `products` audit events, i.e. the product pages have never been exercised by a human. Script remains in PRODUCTS_TEST_PLAN.md |
+| Live e2e against deployment | **Waived by owner (D-018)** | Automated product specs written (`tests/e2e/products.spec.ts`, 5 specs covering catalog → product → duplicate-SKU refusal → variant → intelligence → activate/archive → audit) but never executed against the deployment; the sandbox has no network route to it. One command converts this waiver into evidence |
 
 ## Open Questions
 
@@ -168,9 +168,10 @@ acceptable for ≤2000-row catalogs; revisit for larger volumes.
 - [x] Migrations + reference data applied to staging
 - [x] Services, actions, UI implemented
 - [x] Tests + staging RLS verification
-- [x] Adversarial review
-- [ ] Live manual verification (owner)
-- [ ] Completion declaration
+- [x] Adversarial review (2 defects found and fixed)
+- [x] Automated product e2e specs written
+- [ ] Live verification — **waived by owner (D-018)**, not performed
+- [x] Completion declared by owner 2026-08-05
 
 ## Verification Evidence
 
@@ -241,7 +242,25 @@ limit.
 
 ## Final Phase Verdict
 
-**Implemented — pending live verification.** All code-, schema-,
-security-, and test-level criteria pass with evidence. Remaining:
-owner-side live manual script (PRODUCTS_TEST_PLAN.md) against the
-deployed app, then completion declaration.
+**Phase 02 Complete in Staging** — declared 2026-08-05 by owner
+instruction (D-018). Every code-, schema-, security-, review-, and
+test-level criterion passes with recorded evidence. Two criteria are
+**owner-waived rather than passed**: live manual verification and the
+live e2e run. Neither has been performed — staging holds zero products
+and zero `products` audit events, so the product pages are unproven
+against a real browser.
+
+Residual risk of the waiver: schema, permissions, RLS, and business
+logic are verified (database probes, 47 unit tests, adversarial review),
+but page rendering, form wiring, and server-action round-trips on the
+deployed app are not. A single command closes that gap:
+
+```
+BASE_URL=https://eliza-crm.vercel.app \
+E2E_USER_EMAIL=<admin account> E2E_USER_PASSWORD=<password> \
+npm run test:e2e
+```
+
+Evidence from that run (or the manual script in
+`modules/products/PRODUCTS_TEST_PLAN.md`) will be appended here and the
+waiver retired, exactly as the Phase 01 waiver (D-015) was.
