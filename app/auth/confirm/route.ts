@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -11,21 +10,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
  *    redirects to the /auth/continue interstitial.
  *  - POST (from the interstitial form) performs verifyOtp (token_hash) or
  *    exchangeCodeForSession (PKCE code) and forwards to `next`.
- *
- * TEMPORARY DIAGNOSTICS (Phase 01 recovery-flow investigation): logs a
- * token FINGERPRINT only — length + first 12 hex chars of a secondary
- * hash (sha256) of the already-hashed token value — plus the Vercel
- * request id. The raw token/token_hash is never logged. Remove after the
- * recovery flow is verified end-to-end.
  */
-
-function fingerprint(value: string): string {
-  return createHash("sha256").update(value).digest("hex").slice(0, 12);
-}
-
-function diag(entry: Record<string, unknown>): void {
-  console.log(JSON.stringify({ diag: "auth_confirm", ...entry }));
-}
 
 function safeNext(raw: string | null): string {
   return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/set-password";
@@ -44,17 +29,6 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const upstreamErrorCode = searchParams.get("error_code");
   const next = safeNext(searchParams.get("next"));
-  const requestId = request.headers.get("x-vercel-id") ?? crypto.randomUUID();
-
-  diag({
-    step: "get",
-    requestId,
-    token_hash_len: tokenHash?.length ?? 0,
-    token_hash_fp: tokenHash ? fingerprint(tokenHash) : null,
-    type,
-    has_code: Boolean(code),
-    upstream_error: upstreamErrorCode,
-  });
 
   if (upstreamErrorCode) {
     return loginError(origin, upstreamErrorCode);
@@ -79,16 +53,6 @@ export async function POST(request: Request) {
   const type = String(form.get("type") ?? "");
   const code = String(form.get("code") ?? "");
   const next = safeNext(String(form.get("next") ?? ""));
-  const requestId = request.headers.get("x-vercel-id") ?? crypto.randomUUID();
-
-  diag({
-    step: "post_received",
-    requestId,
-    token_hash_len: tokenHash.length,
-    token_hash_fp: tokenHash ? fingerprint(tokenHash) : null,
-    type,
-    has_code: Boolean(code),
-  });
 
   const supabase = await createServerSupabase();
 
@@ -96,16 +60,6 @@ export async function POST(request: Request) {
     const { error } = await supabase.auth.verifyOtp({
       type: type as EmailOtpType,
       token_hash: tokenHash,
-    });
-    diag({
-      step: "post_verify_otp_result",
-      requestId,
-      token_hash_fp: fingerprint(tokenHash),
-      ok: !error,
-      error_code: error?.code ?? null,
-      error_status: error?.status ?? null,
-      error_name: error?.name ?? null,
-      error_message: error?.message?.slice(0, 120) ?? null,
     });
     if (!error) return NextResponse.redirect(new URL(next, origin), 303);
     // Report the REAL failure class — never substitute a guessed code.
@@ -117,14 +71,6 @@ export async function POST(request: Request) {
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    diag({
-      step: "post_code_exchange_result",
-      requestId,
-      ok: !error,
-      error_code: error?.code ?? null,
-      error_status: error?.status ?? null,
-      error_message: error?.message?.slice(0, 120) ?? null,
-    });
     if (!error) return NextResponse.redirect(new URL(next, origin), 303);
     return loginError(
       origin,

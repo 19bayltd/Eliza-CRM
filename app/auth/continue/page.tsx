@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 
 /**
@@ -18,19 +17,6 @@ export default async function AuthContinuePage(props: {
 }) {
   const params = await props.searchParams;
   const hasCredential = Boolean((params.token_hash && params.type) || params.code);
-  // TEMPORARY DIAGNOSTICS: fingerprint only (secondary sha256, 12 hex
-  // chars) — the raw token_hash is never logged.
-  console.log(
-    JSON.stringify({
-      diag: "auth_continue_render",
-      token_hash_len: params.token_hash?.length ?? 0,
-      token_hash_fp: params.token_hash
-        ? createHash("sha256").update(params.token_hash).digest("hex").slice(0, 12)
-        : null,
-      type: params.type ?? null,
-      has_code: Boolean(params.code),
-    }),
-  );
   if (!hasCredential) redirect("/login?error=invalid_link");
 
   const rawNext = params.next ?? "/set-password";

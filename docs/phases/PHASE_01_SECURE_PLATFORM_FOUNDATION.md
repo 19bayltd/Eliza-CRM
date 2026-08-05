@@ -158,12 +158,13 @@ governance docs, production deployment plan.
 | Documentation updated | Pass | This doc + matrices + module docs + ADRs |
 | Rollback documented | Pass | Deployment plan |
 | Production untouched | Pass | Zero operations against pbyjyamqmbotixahkknu |
-| E2E executed against running app | Pass (unauthenticated set, local) | 4/4 middleware/UI specs on the merged commit; staging round-trip not provable from sandbox (network policy) |
-| Live deployment verified (eliza-crm.vercel.app) | **Blocked** | Sandbox network policy denies all Vercel + Supabase REST egress (curl, Node, WebFetch all 403); zero DB-side evidence of live activity exists yet |
-| Owner account bootstrapped and working | Partial — bootstrapped, NOT yet working | Account active with global owner role + all scopes, but password never set and zero application sign-ins (verified 2026-07-31 ~23:00 UTC: encrypted_password empty, no login_succeeded audit events, 3 GoTrue sessions from fragment-based recovery links the server never received) |
-| Live app→Supabase connectivity since env edits | **Fail (blocking)** | API gateway: zero app-originated (node UA) Supabase requests after 20:20:51 UTC; recent recovery emails were dashboard-sent (mgmt-api UA); interstitial POST verifyOtp never reached Supabase — masked as otp_expired pre-5c9dafa. Probe deployed at /api/diag |
-| Invitation flow live | **Not started** | Staging contains exactly one user |
-| Invitation email loop end-to-end | **Deferred** | Requires SMTP/mailbox on staging |
+| E2E executed against running app | Pass (unauthenticated set, local) | 4/4 middleware/UI specs on the merged commit; live run from an internet-connected machine still pending (sandbox network policy) |
+| Live deployment verified (eliza-crm.vercel.app) | Pass | Live manual verification 2026-08-05 (owner-operated, DB-corroborated): login, admin pages, org write, invite cycle, suspension — see Live Verification Addendum II |
+| Owner account bootstrapped and working | Partial — password set, sign-in pending | Password set via the app's own recovery flow 2026-08-01 13:08 UTC (`user.password_reset_requested` → `user.password_changed`); the credential holder (mailbox owner) has not yet performed a recorded `login_succeeded` |
+| Live app→Supabase connectivity since env edits | Pass | Restored 2026-08-01 after Vercel env fix; proven by app-originated (node UA) gateway traffic and by every live flow recorded since (logins, resets, invites, audit writes) |
+| Invitation flow live | Pass | 2026-08-05 08:33–08:35 UTC: `user.invited` → link verified → set-password → `user.activated`; final state active, employee @ ELIZA_SOURCE (DB-verified) |
+| Invitation email loop end-to-end | Pass | Invite + recovery emails delivered by staging SMTP and consumed via the scanner-proof interstitial (recovery 2026-08-01, invite 2026-08-05 after the invite template was aligned with the recovery template) |
+| Suspension blocks live login | Pass | 2026-08-05 08:38–08:45 UTC: `user.status_changed` (suspended, with reason) → login attempt recorded as `user.login_blocked` / `account_banned` (auth-level ban path) |
 
 ## Open Questions
 
@@ -261,14 +262,69 @@ owner bootstrap has never run, so no one has yet authenticated against
 the live deployment; live-flow criteria are not just unverified from
 here, they cannot yet be true for anyone.
 
+## Live Verification Addendum II (2026-08-01 → 2026-08-05)
+
+All items below were performed by the owner's operator in a real browser
+against https://eliza-crm.vercel.app and corroborated from the staging
+database (audit_log + auth schema) by the implementation session. Times
+UTC.
+
+Connectivity (2026-08-01): after the owner corrected the Vercel
+environment variables, app-originated traffic (user-agent `node`)
+reappeared in the API gateway logs; every event below is app-originated.
+
+- Password recovery through the app: `user.password_reset_requested`
+  (provider handoff accepted) → interstitial → `user.password_changed`
+  for both the owner account (08-01 13:07–13:08) and the administrator
+  account (08-01 12:47).
+- Login/logout cycle: multiple `user.login_succeeded` /
+  `user.signed_out` events (administrator account); wrong-password
+  attempts recorded as `user.login_failed` / `invalid_credentials`.
+- Protected routes: unauthenticated visits to /dashboard and
+  /admin/users redirect to /login with no data flash (manual, 08-05).
+- Admin pages render with real data as Administrator: organization
+  (3 companies), users (accounts, statuses, roles, scopes), audit
+  viewer (paginated recent events) — manual, 08-05.
+- Organization write + audit: branch TEST35 created via UI →
+  `organization / branch.created` with actor + values (08-05 08:01).
+- Owner-only boundary: as Administrator, company create/update/archive
+  controls absent (permission-aware rendering); branch/warehouse/
+  department management available (08-05, screenshots).
+- Invitation cycle (08-05 08:33–08:35): `user.invited`
+  (admanager.1and9@gmail.com, employee @ ELIZA_SOURCE, actor
+  administrator) → invite email delivered → scanner-proof interstitial →
+  set-password → `user.activated`; DB end-state: account_status=active,
+  employee role, single ELIZA_SOURCE scope, last_sign_in_at recorded.
+  Prerequisite fix: the *Invite user* email template was aligned with
+  the recovery template (`{{ .SiteURL }}/auth/confirm?token_hash=
+  {{ .TokenHash }}&type=invite&next=/set-password`); the prior default
+  template produced fragment-based links that expired unusably
+  (recorded incident, 08-05 morning).
+- Suspension (08-05 08:38–08:45): `user.status_changed` active→suspended
+  with reason → suspended login attempt rejected; after commit 3b46ce9
+  the rejection is recorded truthfully as `user.login_blocked` /
+  `account_banned` and surfaces "This account is not active" (the
+  auth-level ban fires before the application account-state gate).
+- Stale-invitation handling: expired pending invitations were removed
+  (audited `user.invitation_deleted`), and the admin UI gained
+  Resend/Delete invitation actions (commit 76c4dd2) so recovery from
+  expired invites no longer requires database access.
+
+Corrections/fixes landed during live verification: 76c4dd2
+(resend/delete pending invitations), 3b46ce9 (banned-account sign-in
+message + truthful audit reason), diagnostic removal (this commit).
+Production project: still zero migrations, tables, and users (re-verified
+2026-08-05).
+
 ## Final Phase Verdict
 
-**Partially Complete** — code, schema, security controls, and all
-sandbox-verifiable criteria pass with evidence; live-deployment
-verification is blocked by this environment's network policy and by the
-not-yet-run owner bootstrap. Remaining to reach "Complete in Staging":
-(1) run `scripts/bootstrap-owner.mjs` against staging, (2) execute the
-live e2e suite against https://eliza-crm.vercel.app from a machine with
-internet access (`BASE_URL=https://eliza-crm.vercel.app CHROMIUM/creds
-per README`), (3) confirm invitation + reset emails end-to-end. No
-unresolved critical issues.
+**Partially Complete — two evidence items from "Complete in Staging".**
+All code-, schema-, security-, and live-flow criteria now pass with
+recorded evidence. Remaining gate:
+(1) one recorded `login_succeeded` for the owner account — the mailbox
+holder must complete /forgot-password → set password → sign in;
+(2) the live e2e suite from an internet-connected machine:
+`BASE_URL=https://eliza-crm.vercel.app E2E_USER_EMAIL/PASSWORD=<admin
+test account> npm run test:e2e`.
+No unresolved critical issues. Temporary diagnostics (/api/diag probe,
+token-fingerprint logging) have been removed from the codebase.
