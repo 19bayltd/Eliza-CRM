@@ -6,25 +6,29 @@ Phase 01 — Secure Platform Foundation
 
 ## Current Status
 
-NOT yet "Phase 01 Complete in Staging" — but only two evidence items
-remain. Live verification (2026-08-01 → 2026-08-05, owner-operated,
-database-corroborated) has now proven on https://eliza-crm.vercel.app:
-app↔Supabase connectivity, sign-in/sign-out, wrong-password and
-banned-account rejection, password recovery through the app's email
-loop, the full invitation cycle (invite → email → interstitial →
-set-password → activation), suspension blocking with truthful audit,
-organization writes with audit, permission-aware admin rendering
-(Administrator cannot manage companies), and protected-route redirects.
-The live e2e suite passed 2026-08-05 09:20–09:24 UTC from the
-operator's machine: 5/5 specs green against the live deployment,
-including authenticated sign-in → dashboard → sign-out; DB-corroborated
-in audit_log. Remaining gate — exactly ONE item:
+**Phase 01 Complete in Staging** (declared 2026-08-05 by owner
+instruction, D-015). Live verification (2026-08-01 → 2026-08-05,
+owner-operated, database-corroborated) proved on
+https://eliza-crm.vercel.app: app↔Supabase connectivity,
+sign-in/sign-out, wrong-password and banned-account rejection, password
+recovery through the app's email loop, the full invitation cycle
+(invite → email → interstitial → set-password → activation), suspension
+blocking with truthful audit, organization writes with audit,
+permission-aware admin rendering (Administrator cannot manage
+companies), and protected-route redirects. The live e2e suite passed
+5/5 (2026-08-05 09:20–09:24 UTC, DB-corroborated), including
+authenticated sign-in → dashboard → sign-out.
 
-1. One recorded `login_succeeded` for the owner account
-   (mailbox holder: /forgot-password → set password → sign in once)
+One criterion was waived by the owner rather than passed (D-015): the
+owner account's first recorded `login_succeeded`. The account is
+bootstrapped, active, and fully privileged; the mailbox holder (the
+owner's manager) will complete /forgot-password → set password → sign
+in, and the evidence will be appended to the phase document when it
+occurs (an automated audit-log watch remains armed).
 
 Temporary diagnostics (/api/diag, token-fingerprint logging) removed.
-Phase 02 must NOT begin without explicit owner authorization.
+Production deployment is NOT authorized. Phase 02 has NOT started and
+must not begin without explicit owner authorization.
 
 ## Approved Scope
 
@@ -75,13 +79,17 @@ None (awaiting the two remaining evidence items).
 
 ## Blocked Work
 
-- Owner first sign-in — password was set 2026-08-01 via the app's
-  recovery flow, but the credential was not retained; the owner mailbox
-  is held by the owner's manager, who must run /forgot-password → set
-  password → sign in once (zero `login_succeeded` events exist for the
-  owner account)
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md`
+
+## Post-Completion Follow-ups
+
+- Owner first sign-in (waived criterion, D-015): mailbox holder runs
+  /forgot-password → set password → sign in; evidence appended to the
+  phase document when it occurs
+- Administrator test account (nkfhhdndjdh@gmail.com) password rotation —
+  the operator displayed a weak password during e2e testing and has
+  agreed to change it
 
 ## Open Decisions
 
@@ -120,7 +128,7 @@ users). Production deployment not authorized.
 
 ## Phase Completion Verdict
 
-**Partially Complete — ONE evidence item from "Phase 01 Complete in
-Staging"**: the owner account's first recorded `login_succeeded`.
-Everything else passes with recorded evidence. Itemized table + live
+**Phase 01 Complete in Staging** — declared 2026-08-05 by owner
+instruction with one criterion owner-waived (D-015); every other
+criterion passes with recorded evidence. Itemized table + live
 verification addenda in `phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md`.

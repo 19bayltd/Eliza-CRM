@@ -160,7 +160,7 @@ governance docs, production deployment plan.
 | Production untouched | Pass | Zero operations against pbyjyamqmbotixahkknu |
 | E2E executed against running app | Pass (live) | 2026-08-05 09:20–09:24 UTC, operator machine vs https://eliza-crm.vercel.app: all 5 specs green including authenticated sign-in → dashboard → sign-out (2 passed on retry after client-side `net::ERR_ABORTED`); DB-corroborated (`login_failed`+reset for the probe address, `login_succeeded`×2 + `signed_out` for the admin test account) |
 | Live deployment verified (eliza-crm.vercel.app) | Pass | Live manual verification 2026-08-05 (owner-operated, DB-corroborated): login, admin pages, org write, invite cycle, suspension — see Live Verification Addendum II |
-| Owner account bootstrapped and working | Partial — password set, sign-in pending | Password set via the app's own recovery flow 2026-08-01 13:08 UTC (`user.password_reset_requested` → `user.password_changed`); the credential holder (mailbox owner) has not yet performed a recorded `login_succeeded` |
+| Owner account bootstrapped and working | **Waived by owner (D-015)** | Bootstrapped, active, global owner role + all scopes; recovery flow proven live on this very account (`user.password_changed` 2026-08-01 13:08 UTC). First recorded `login_succeeded` waived by owner instruction 2026-08-05 — the mailbox holder (owner's manager) will complete reset→sign-in later; evidence will be appended here when it occurs |
 | Live app→Supabase connectivity since env edits | Pass | Restored 2026-08-01 after Vercel env fix; proven by app-originated (node UA) gateway traffic and by every live flow recorded since (logins, resets, invites, audit writes) |
 | Invitation flow live | Pass | 2026-08-05 08:33–08:35 UTC: `user.invited` → link verified → set-password → `user.activated`; final state active, employee @ ELIZA_SOURCE (DB-verified) |
 | Invitation email loop end-to-end | Pass | Invite + recovery emails delivered by staging SMTP and consumed via the scanner-proof interstitial (recovery 2026-08-01, invite 2026-08-05 after the invite template was aligned with the recovery template) |
@@ -330,10 +330,16 @@ for the admin test account at 09:23.
 
 ## Final Phase Verdict
 
-**Partially Complete — ONE evidence item from "Complete in Staging".**
-All code-, schema-, security-, live-flow, and e2e criteria now pass with
-recorded evidence. Remaining gate: one recorded `login_succeeded` for
-the owner account — the mailbox holder must complete /forgot-password →
-set password → sign in once.
+**Phase 01 Complete in Staging** (declared 2026-08-05 by owner
+instruction). Every criterion passes with recorded evidence except one,
+which the owner explicitly waived rather than had falsified: the owner
+account's first recorded `login_succeeded` (D-015). That account is
+bootstrapped, active, and fully privileged, and the recovery flow it
+depends on is proven live — the sign-in itself awaits the mailbox
+holder (the owner's manager) and its evidence will be appended here
+when it occurs.
+
 No unresolved critical issues. Temporary diagnostics (/api/diag probe,
-token-fingerprint logging) have been removed from the codebase.
+token-fingerprint logging) removed. Production remains untouched and
+unauthorized for deployment. Phase 02 has not started and requires
+explicit owner authorization.
