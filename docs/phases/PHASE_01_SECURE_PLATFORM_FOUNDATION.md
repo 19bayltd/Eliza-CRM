@@ -158,7 +158,7 @@ governance docs, production deployment plan.
 | Documentation updated | Pass | This doc + matrices + module docs + ADRs |
 | Rollback documented | Pass | Deployment plan |
 | Production untouched | Pass | Zero operations against pbyjyamqmbotixahkknu |
-| E2E executed against running app | Pass (unauthenticated set, local) | 4/4 middleware/UI specs on the merged commit; live run from an internet-connected machine still pending (sandbox network policy) |
+| E2E executed against running app | Pass (live) | 2026-08-05 09:20–09:24 UTC, operator machine vs https://eliza-crm.vercel.app: all 5 specs green including authenticated sign-in → dashboard → sign-out (2 passed on retry after client-side `net::ERR_ABORTED`); DB-corroborated (`login_failed`+reset for the probe address, `login_succeeded`×2 + `signed_out` for the admin test account) |
 | Live deployment verified (eliza-crm.vercel.app) | Pass | Live manual verification 2026-08-05 (owner-operated, DB-corroborated): login, admin pages, org write, invite cycle, suspension — see Live Verification Addendum II |
 | Owner account bootstrapped and working | Partial — password set, sign-in pending | Password set via the app's own recovery flow 2026-08-01 13:08 UTC (`user.password_reset_requested` → `user.password_changed`); the credential holder (mailbox owner) has not yet performed a recorded `login_succeeded` |
 | Live app→Supabase connectivity since env edits | Pass | Restored 2026-08-01 after Vercel env fix; proven by app-originated (node UA) gateway traffic and by every live flow recorded since (logins, resets, invites, audit writes) |
@@ -316,15 +316,24 @@ message + truthful audit reason), diagnostic removal (this commit).
 Production project: still zero migrations, tables, and users (re-verified
 2026-08-05).
 
+Live e2e run (2026-08-05 09:20–09:24 UTC, operator machine, Chrome via
+CHROMIUM_PATH): 5/5 specs green against https://eliza-crm.vercel.app —
+protected-route redirects, login rendering, invalid-credentials error,
+non-enumerating reset, and authenticated sign-in → dashboard → sign-out
+with real staging credentials. Two specs required one retry each after
+client-side `net::ERR_ABORTED` (operator connectivity, not the app; the
+same pages loaded in sibling specs within seconds). Server-side
+corroboration in audit_log: `user.login_failed`/`invalid_credentials`
+and `user.password_reset_requested` for the probe address
+(nobody@example.com), `user.login_succeeded` ×2 and `user.signed_out`
+for the admin test account at 09:23.
+
 ## Final Phase Verdict
 
-**Partially Complete — two evidence items from "Complete in Staging".**
-All code-, schema-, security-, and live-flow criteria now pass with
-recorded evidence. Remaining gate:
-(1) one recorded `login_succeeded` for the owner account — the mailbox
-holder must complete /forgot-password → set password → sign in;
-(2) the live e2e suite from an internet-connected machine:
-`BASE_URL=https://eliza-crm.vercel.app E2E_USER_EMAIL/PASSWORD=<admin
-test account> npm run test:e2e`.
+**Partially Complete — ONE evidence item from "Complete in Staging".**
+All code-, schema-, security-, live-flow, and e2e criteria now pass with
+recorded evidence. Remaining gate: one recorded `login_succeeded` for
+the owner account — the mailbox holder must complete /forgot-password →
+set password → sign in once.
 No unresolved critical issues. Temporary diagnostics (/api/diag probe,
 token-fingerprint logging) have been removed from the codebase.

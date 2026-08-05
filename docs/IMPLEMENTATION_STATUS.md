@@ -15,13 +15,13 @@ loop, the full invitation cycle (invite → email → interstitial →
 set-password → activation), suspension blocking with truthful audit,
 organization writes with audit, permission-aware admin rendering
 (Administrator cannot manage companies), and protected-route redirects.
-Remaining gate:
+The live e2e suite passed 2026-08-05 09:20–09:24 UTC from the
+operator's machine: 5/5 specs green against the live deployment,
+including authenticated sign-in → dashboard → sign-out; DB-corroborated
+in audit_log. Remaining gate — exactly ONE item:
 
 1. One recorded `login_succeeded` for the owner account
    (mailbox holder: /forgot-password → set password → sign in once)
-2. Live e2e run from an internet-connected machine:
-   `BASE_URL=https://eliza-crm.vercel.app E2E_USER_EMAIL=<admin test
-   account> E2E_USER_PASSWORD=<password> npm run test:e2e`
 
 Temporary diagnostics (/api/diag, token-fingerprint logging) removed.
 Phase 02 must NOT begin without explicit owner authorization.
@@ -80,8 +80,6 @@ None (awaiting the two remaining evidence items).
   is held by the owner's manager, who must run /forgot-password → set
   password → sign in once (zero `login_succeeded` events exist for the
   owner account)
-- Live e2e suite — must run from an internet-connected machine (sandbox
-  network policy); command in Current Status
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md`
 
@@ -93,10 +91,12 @@ None (awaiting the two remaining evidence items).
 ## Test Status
 
 Unit 28/28 pass. Integration suite env-gated (runs with staging
-credentials). E2E: 4/4 unauthenticated specs pass locally; live run
-pending. Staging SQL verification: all probes passed. Live manual test
-script: 8 of the scripted checks executed and corroborated from the
-database (see phase doc, Live Verification Addendum II).
+credentials). E2E: 5/5 specs green against the LIVE deployment
+(2026-08-05, operator machine; 2 required a retry on client-side
+network aborts), DB-corroborated. Staging SQL verification: all probes
+passed. Live manual test script: 8 of the scripted checks executed and
+corroborated from the database (see phase doc, Live Verification
+Addendum II).
 
 ## Security Audit Status
 
@@ -120,7 +120,7 @@ users). Production deployment not authorized.
 
 ## Phase Completion Verdict
 
-**Partially Complete — two evidence items from "Phase 01 Complete in
-Staging"**: (1) owner account `login_succeeded`, (2) live e2e run.
+**Partially Complete — ONE evidence item from "Phase 01 Complete in
+Staging"**: the owner account's first recorded `login_succeeded`.
 Everything else passes with recorded evidence. Itemized table + live
 verification addenda in `phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md`.
