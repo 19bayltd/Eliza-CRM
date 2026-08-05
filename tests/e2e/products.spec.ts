@@ -44,13 +44,18 @@ test.describe("product master", () => {
    * A create either succeeds or reports the entity already exists (a
    * previous attempt in this run created it). Anything else — a
    * permission error, a validation error, silence — is a failure.
+   *
+   * Asserted at PAGE level, never scoped to the submitting form: the
+   * action calls revalidatePath, React remounts that form subtree, and a
+   * form-scoped locator then misses the message that is plainly on the
+   * page (diagnosed against the live deployment, 2026-08-05).
    */
   async function expectCreatedOrExisting(
-    form: import("@playwright/test").Locator,
+    page: import("@playwright/test").Page,
     successMessage: string,
   ) {
     await expect(
-      form.getByText(successMessage).or(form.getByText(/already exists/i)),
+      page.getByText(successMessage).or(page.getByText(/already exists/i)).first(),
     ).toBeVisible();
   }
 
@@ -63,7 +68,7 @@ test.describe("product master", () => {
     await unitForm.getByLabel("Code").fill(UNIT);
     await unitForm.getByLabel("Name").fill("E2E pieces");
     await unitForm.getByRole("button", { name: "Add unit" }).click();
-    await expectCreatedOrExisting(unitForm, "Unit created.");
+    await expectCreatedOrExisting(page, "Unit created.");
 
     const categoryForm = page
       .locator("form")
@@ -72,7 +77,7 @@ test.describe("product master", () => {
     await categoryForm.getByLabel("Code").fill(CATEGORY);
     await categoryForm.getByLabel("Name").fill("E2E category");
     await categoryForm.getByRole("button", { name: "Add category" }).click();
-    await expectCreatedOrExisting(categoryForm, "Category created.");
+    await expectCreatedOrExisting(page, "Category created.");
 
     const attributeForm = page
       .locator("form")
@@ -81,7 +86,7 @@ test.describe("product master", () => {
     await attributeForm.getByLabel("Code").fill(ATTRIBUTE);
     await attributeForm.getByLabel("Name").fill("E2E size");
     await attributeForm.getByRole("button", { name: "Add attribute" }).click();
-    await expectCreatedOrExisting(attributeForm, "Attribute created.");
+    await expectCreatedOrExisting(page, "Attribute created.");
 
     // The value form belongs to the attribute just created.
     await page.reload();
@@ -93,7 +98,7 @@ test.describe("product master", () => {
       .first();
     await valueForm.getByLabel("New value").fill("E2E-M");
     await valueForm.getByRole("button", { name: "Add value" }).click();
-    await expectCreatedOrExisting(valueForm, "Value added.");
+    await expectCreatedOrExisting(page, "Value added.");
   });
 
   test("product: create, reject a duplicate SKU, then add a variant", async ({
