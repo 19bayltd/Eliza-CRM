@@ -18,6 +18,7 @@ import {
 import {
   assignRoleSchema,
   companyScopeSchema,
+  invitationTargetSchema,
   inviteUserSchema,
   revokeRoleSchema,
   setAccountStatusSchema,
@@ -191,6 +192,166 @@ export async function inviteUser(
     },
   });
   return { userId };
+}
+
+/**
+ * Loads an invitation that is still pending (status `invited`, never
+ * signed in) and verifies the caller may manage it: users.invite in every
+ * company the invitee is scoped to, or a global users.invite grant when
+ * the invitee has no scopes yet. Invite links are one-time and expire, so
+ * pending invitations sometimes need to be re-sent or removed; both
+ * operations are only ever valid before first sign-in.
+ */
+async function requirePendingInvitation(userId: string) {
+  const session = await requireActiveUser();
+  const admin = createAdminSupabase();
+
+  const { data: profile } = await admin
+    .from("user_profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!profile) throw notFound("User not found");
+  if (profile.account_status !== "invited") {
+    throw conflict(
+      "Only accounts still in the invited state can be re-invited or removed",
+    );
+  }
+  const { data: authUser, error: authError } =
+    await admin.auth.admin.getUserById(userId);
+  if (authError || !authUser.user) throw internal();
+  if (authUser.user.last_sign_in_at) {
+    throw conflict(
+      "This user has already signed in; manage them via account status instead",
+    );
+  }
+
+  const { data: scopeRows } = await admin
+    .from("user_company_scopes")
+    .select("company_id")
+    .eq("user_id", userId);
+  const companyIds = (scopeRows ?? []).map((s) => s.company_id);
+  if (companyIds.length === 0) {
+    const ctx = await getAccessContext();
+    const hasGlobal = ctx.roleGrants.some(
+      (g) => g.companyId === null && g.permissions.includes(PERMISSIONS.usersInvite),
+    );
+    if (!hasGlobal) throw forbidden("Not permitted (missing_permission)");
+  } else {
+    for (const companyId of companyIds) {
+      await requirePermission({ permission: PERMISSIONS.usersInvite, companyId });
+    }
+  }
+
+  const { data: roleRows } = await admin
+    .from("user_roles")
+    .select("role_id, company_id, roles(key)")
+    .eq("user_id", userId);
+
+  return { session, admin, profile, companyIds, roleRows: roleRows ?? [] };
+}
+
+/**
+ * Re-send a pending invitation. Supabase cannot re-issue an invite email
+ * for an existing auth user, so the stale user is deleted and re-invited
+ * with identical role and scope grants; the previous link stops working.
+ */
+export async function resendInvitation(
+  input: z.input<typeof invitationTargetSchema>,
+): Promise<{ userId: string }> {
+  const parsed = invitationTargetSchema.safeParse(input);
+  if (!parsed.success) {
+    throw invalidInput(parsed.error.issues[0]?.message ?? "Invalid input");
+  }
+  const { session, admin, profile, companyIds, roleRows } =
+    await requirePendingInvitation(parsed.data.userId);
+
+  const { error: deleteError } = await admin.auth.admin.deleteUser(profile.id);
+  if (deleteError) throw internal("Invitation could not be re-sent");
+
+  const env = publicEnv();
+  const { data: created, error: inviteError } =
+    await admin.auth.admin.inviteUserByEmail(profile.email, {
+      data: { full_name: profile.full_name },
+      redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm`,
+    });
+  if (inviteError || !created.user) {
+    throw internal("The old invitation was removed but the new email failed; invite again");
+  }
+  const userId = created.user.id;
+
+  const scopeRows = companyIds.map((companyId) => ({
+    user_id: userId,
+    company_id: companyId,
+    created_by: session.userId,
+  }));
+  const newRoleRows = roleRows.map((r) => ({
+    user_id: userId,
+    role_id: r.role_id,
+    company_id: r.company_id,
+    created_by: session.userId,
+  }));
+  const [scopeRes, roleRes] = await Promise.all([
+    scopeRows.length
+      ? admin.from("user_company_scopes").insert(scopeRows)
+      : Promise.resolve({ error: null }),
+    newRoleRows.length
+      ? admin.from("user_roles").insert(newRoleRows)
+      : Promise.resolve({ error: null }),
+  ]);
+  if (scopeRes.error || roleRes.error) throw internal("Invitation grants failed");
+
+  await writeAudit({
+    module: "auth",
+    action: "user.invitation_resent",
+    actorUserId: session.userId,
+    actorEmail: session.email,
+    entityType: "user",
+    entityId: userId,
+    previousValue: { user_id: profile.id },
+    newValue: {
+      email: profile.email,
+      full_name: profile.full_name,
+      roles: roleRows.map((r) => ({ role: r.roles?.key, company_id: r.company_id })),
+      company_ids: companyIds,
+    },
+  });
+  return { userId };
+}
+
+/**
+ * Remove a pending invitation entirely (auth user + cascaded profile,
+ * roles, and scopes). Only valid before first sign-in — established
+ * accounts must go through the account-status state machine instead.
+ */
+export async function deleteInvitation(
+  input: z.input<typeof invitationTargetSchema>,
+): Promise<void> {
+  const parsed = invitationTargetSchema.safeParse(input);
+  if (!parsed.success) {
+    throw invalidInput(parsed.error.issues[0]?.message ?? "Invalid input");
+  }
+  const { session, admin, profile, companyIds, roleRows } =
+    await requirePendingInvitation(parsed.data.userId);
+
+  const { error } = await admin.auth.admin.deleteUser(profile.id);
+  if (error) throw internal("Invitation could not be deleted");
+
+  await writeAudit({
+    module: "auth",
+    action: "user.invitation_deleted",
+    actorUserId: session.userId,
+    actorEmail: session.email,
+    entityType: "user",
+    entityId: profile.id,
+    previousValue: {
+      email: profile.email,
+      full_name: profile.full_name,
+      account_status: profile.account_status,
+      roles: roleRows.map((r) => ({ role: r.roles?.key, company_id: r.company_id })),
+      company_ids: companyIds,
+    },
+  });
 }
 
 /**

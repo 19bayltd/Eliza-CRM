@@ -1,8 +1,10 @@
 import { ActionForm } from "@/components/action-form";
 import {
   assignRoleAction,
+  deleteInvitationAction,
   grantCompanyScopeAction,
   inviteUserAction,
+  resendInvitationAction,
   revokeCompanyScopeAction,
   revokeRoleAction,
   setAccountStatusAction,
@@ -168,6 +170,29 @@ export default async function UsersAdminPage() {
                     </td>
                     {(canSuspend || canRoles || canScopes) && (
                       <td>
+                        {canInvite && u.profile.account_status === "invited" && (
+                          <>
+                            <ActionForm
+                              action={resendInvitationAction}
+                              submitLabel="Resend invitation"
+                              successMessage="Invitation re-sent."
+                              confirmMessage={`Send a fresh invitation email to ${u.profile.email}? The previous link will stop working.`}
+                              className="row"
+                            >
+                              <input type="hidden" name="userId" value={u.profile.id} />
+                            </ActionForm>
+                            <ActionForm
+                              action={deleteInvitationAction}
+                              submitLabel="Delete invitation"
+                              successMessage="Invitation deleted."
+                              confirmMessage={`Delete the pending invitation for ${u.profile.email}? Their roles and scopes will be removed.`}
+                              buttonClassName="danger"
+                              className="row"
+                            >
+                              <input type="hidden" name="userId" value={u.profile.id} />
+                            </ActionForm>
+                          </>
+                        )}
                         {canSuspend && (
                           <details>
                             <summary>Change status</summary>

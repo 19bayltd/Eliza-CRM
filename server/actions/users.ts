@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { toActionError, type ActionResult } from "@/server/errors";
 import {
   assignRole,
+  deleteInvitation,
   grantCompanyScope,
   inviteUser,
+  resendInvitation,
   revokeCompanyScope,
   revokeRole,
   setAccountStatus,
@@ -24,6 +26,32 @@ export async function inviteUserAction(
       roleKey: String(formData.get("roleKey") ?? ""),
       companyIds: formData.getAll("companyIds").map(String),
     });
+    revalidatePath(ADMIN_USERS_PATH);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+export async function resendInvitationAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await resendInvitation({ userId: String(formData.get("userId") ?? "") });
+    revalidatePath(ADMIN_USERS_PATH);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+export async function deleteInvitationAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await deleteInvitation({ userId: String(formData.get("userId") ?? "") });
     revalidatePath(ADMIN_USERS_PATH);
     return { ok: true, data: undefined };
   } catch (err) {

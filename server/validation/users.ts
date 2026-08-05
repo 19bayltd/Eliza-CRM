@@ -43,6 +43,10 @@ export const companyScopeSchema = z.object({
   companyId: uuidSchema,
 });
 
+export const invitationTargetSchema = z.object({
+  userId: uuidSchema,
+});
+
 export const updateProfileSchema = z.object({
   userId: uuidSchema,
   fullName: z.string().trim().min(1, "Full name is required").max(120),
