@@ -15,7 +15,7 @@ intelligence, product images, and validated CSV import.
 | `categories` | Category (nested) | per-company code (dashes allowed), optional `parent_id`, archive-only; archive refused while active products/children reference it |
 | `attributes` / `attribute_values` | Variant characteristics (Size, Color, …) | values unique per attribute; archive-only |
 | `products` | Product | per-company unique SKU `^[A-Z0-9][A-Z0-9-]*$`, name, description, category, unit, status `draft/active/archived` |
-| `product_variants` | Sellable variation | own per-company unique SKU, same status machine; attribute combination unique within its product (service-enforced) |
+| `product_variants` | Sellable variation | own per-company unique SKU, same status machine; a non-empty attribute combination is unique within its product (service-enforced). Attribute-less variants carry no combination and are distinguished by SKU alone — bulk import creates them that way |
 | `variant_attribute_values` | Variant ↔ value links | one value per attribute per variant |
 | `product_intelligence` | **Confidential** sourcing/cost data | 1:1 with product; `numeric(14,2)` cost + ISO currency; RLS requires `products.intelligence.view` |
 | `product_images` | Image registry | tier `public` (any scoped user) or `confidential` (intelligence permission); objects in private buckets, signed URLs only |

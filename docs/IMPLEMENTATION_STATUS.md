@@ -58,7 +58,7 @@ Phase 02 (2026-08-05):
   main-nav entry — permission-aware throughout
 - 19 new unit tests (47 total green); staging RLS probes recorded
   (cross-company isolation, confidential wall, write revocation);
-  advisors clean; multi-agent adversarial review run
+  advisors clean; adversarial review run with 2 defects found and fixed
 - Module documentation set + cross-cutting docs updated (permission
   matrix, audit catalog, storage policy, decision log D-016/D-017)
 
@@ -101,10 +101,12 @@ passed with recorded evidence (phase docs).
 Phase 01 review complete — no critical findings. Phase 02: advisors
 report no new findings (1 pre-existing INFO: audit_log deny-all by
 design; 1 pre-existing WARN: leaked-password protection disabled —
-owner dashboard action recommended). Multi-agent adversarial review of
-the Phase 02 diff in progress at commit time; confirmed findings (if
-any) are fixed in follow-up commits and recorded in the phase document
-before completion is declared.
+owner dashboard action recommended). Adversarial review of the Phase 02
+diff (authorization, RLS parity, confidentiality, correctness) found and
+fixed two defects — CSV import could add variants to an archived
+product, and the two variant-creation paths disagreed on attribute-less
+variants. Both fixed and documented in the phase document under Review
+Findings.
 
 ## Migration Status
 

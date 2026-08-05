@@ -402,21 +402,13 @@ export async function createVariant(
     list.push(row.attribute_value_id);
     byVariant.set(row.variant_id, list);
   }
-  const fingerprint = (ids: string[]) => [...ids].sort().join("|");
-  const newFp = fingerprint(resolved.map((r) => r.valueId));
-  // Variants with no attribute rows also collide with an attribute-less new
-  // variant, which the map (keyed only by rows) cannot see — count them.
-  if (resolved.length === 0) {
-    const { data: allVariants, error: variantsError } = await admin
-      .from("product_variants")
-      .select("id")
-      .eq("product_id", product.id);
-    if (variantsError) throw internal();
-    const withRows = new Set((existingRows ?? []).map((r) => r.variant_id));
-    if ((allVariants ?? []).some((v) => !withRows.has(v.id))) {
-      throw conflict("A variant with this attribute combination already exists");
-    }
-  } else {
+  // Attribute-less variants carry no combination to collide on and are
+  // distinguished by their (already unique) SKU — bulk import creates
+  // them that way, so treating the empty set as a collision would make
+  // the two creation paths disagree.
+  if (resolved.length > 0) {
+    const fingerprint = (ids: string[]) => [...ids].sort().join("|");
+    const newFp = fingerprint(resolved.map((r) => r.valueId));
     for (const ids of byVariant.values()) {
       if (fingerprint(ids) === newFp) {
         throw conflict("A variant with this attribute combination already exists");

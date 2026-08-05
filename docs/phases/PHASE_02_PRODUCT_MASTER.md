@@ -143,7 +143,7 @@ decision log D-016/D-017), verification evidence below, this report.
 | Unit tests pass | Pass | 47/47 (19 new) |
 | Lint / typecheck / build pass | Pass | 0 errors; production build green (4 new routes) |
 | Advisors reviewed | Pass | No new findings (1 pre-existing INFO by design; 1 pre-existing auth WARN noted to owner) |
-| Adversarial review executed | In progress | Multi-agent review running at commit time; confirmed findings (if any) land as follow-up commits before completion is declared |
+| Adversarial review executed | Pass | Review of the full Phase 02 diff (authorization, RLS parity, confidentiality, correctness); 2 defects found and fixed — see Review Findings below |
 | Documentation updated | Pass | Module set + cross-cutting docs + decisions |
 | Production untouched | Pass | Re-verified 2026-08-05: 0 tables, 0 users |
 | Live manual verification (owner) | **Pending** | Script in PRODUCTS_TEST_PLAN.md — run after deploy |
@@ -196,9 +196,48 @@ RLS probe (fixtures inserted + probed + rolled back; residue 0):
 production:  0 tables, 0 users (re-verified)
 ```
 
-Adversarial review (multi-agent: authorization/leakage, RLS, and
-correctness reviewers): running at commit time; outcomes and any fixes
-are recorded here before the completion declaration.
+## Review Findings (2026-08-05, post-implementation review)
+
+The Phase 02 diff was reviewed across authorization, RLS parity,
+confidentiality, and correctness. Two defects were found and fixed; the
+rest of the surface verified clean.
+
+**Fixed — F-1: CSV import could add variants to an archived product.**
+`applyImport`'s `create_variant` branch selected only the product `id`
+and never checked `status`, so a row naming an archived product created
+a live variant under it — a state the interactive path explicitly
+refuses ("Archived products cannot receive new variants"). Fixed by
+checking status at apply time and recording a per-row failure
+(`product <sku> is archived`).
+
+**Fixed — F-2: the two variant-creation paths disagreed on
+attribute-less variants.** The interactive path treated the empty
+attribute set as a "combination" and refused a second attribute-less
+variant, while CSV import (which never assigns attributes) created many.
+Applying the strict reading to import would have broken multi-variant
+import entirely, so the rule was corrected in the coherent direction:
+uniqueness applies to non-empty combinations, and attribute-less
+variants are distinguished by their already-unique SKU. Specification
+updated to match.
+
+**Verified clean.** Every product service re-validates client-supplied
+IDs (category, unit, attribute value, variant, parent category) against
+the target company before use, and no service-role query runs before its
+`requirePermission` gate. Signed URLs derive their bucket from stored
+file metadata rather than client input, so a confidential image cannot
+be requested through a public-tier path; the download gate for
+`confidential-product-images` is `products.intelligence.view`, making
+`listProductImages` fail closed even if its own filter were wrong.
+Confidential values never enter audit payloads (field names only), and
+the intelligence panel is absent — not merely hidden — without the
+permission. RLS policies mirror the service checks and were confirmed by
+the staging probe. Category cycles are impossible in this phase (parent
+is set only at creation, and self-parenting is blocked by constraint).
+
+Note recorded for a later phase: import applies row-by-row without a
+surrounding transaction, by design (per-row failures are recorded rather
+than rolling back the batch); revisit if catalogs outgrow the 2000-row
+limit.
 
 ## Final Phase Verdict
 

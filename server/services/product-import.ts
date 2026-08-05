@@ -256,10 +256,16 @@ export async function applyImport(
         if (!productId) {
           const { data: product } = await admin
             .from("products")
-            .select("id")
+            .select("id, status")
             .eq("company_id", job.company_id)
             .eq("sku", raw.sku ?? "")
             .maybeSingle();
+          if (product?.status === "archived") {
+            // Same rule as the interactive path: archived products take
+            // no new variants.
+            await fail(`product ${raw.sku} is archived`);
+            continue;
+          }
           productId = product?.id;
           if (productId) productIdBySku.set(raw.sku ?? "", productId);
         }
