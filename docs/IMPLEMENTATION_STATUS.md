@@ -19,12 +19,11 @@ companies), and protected-route redirects. The live e2e suite passed
 5/5 (2026-08-05 09:20–09:24 UTC, DB-corroborated), including
 authenticated sign-in → dashboard → sign-out.
 
-One criterion was waived by the owner rather than passed (D-015): the
-owner account's first recorded `login_succeeded`. The account is
-bootstrapped, active, and fully privileged; the mailbox holder (the
-owner's manager) will complete /forgot-password → set password → sign
-in, and the evidence will be appended to the phase document when it
-occurs (an automated audit-log watch remains armed).
+The criterion waived at declaration (D-015) — the owner account's first
+recorded `login_succeeded` — was satisfied the same day: 2026-08-05
+09:42–09:44 UTC, the mailbox holder completed the app's recovery flow
+and signed in (`user.login_succeeded` 09:44:15, DB-verified). All
+completion criteria now pass with recorded evidence; no waivers remain.
 
 Temporary diagnostics (/api/diag, token-fingerprint logging) removed.
 Production deployment is NOT authorized. Phase 02 has NOT started and
@@ -84,9 +83,9 @@ None (awaiting the two remaining evidence items).
 
 ## Post-Completion Follow-ups
 
-- Owner first sign-in (waived criterion, D-015): mailbox holder runs
-  /forgot-password → set password → sign in; evidence appended to the
-  phase document when it occurs
+- ~~Owner first sign-in (waived criterion, D-015)~~ — DONE 2026-08-05
+  09:44 UTC (`user.login_succeeded`, DB-verified; evidence in the phase
+  document)
 - Administrator test account (nkfhhdndjdh@gmail.com) password rotation —
   the operator displayed a weak password during e2e testing and has
   agreed to change it
