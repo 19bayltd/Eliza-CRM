@@ -70,6 +70,23 @@ e.g. `auth.user.login_failed`, `organization.company.created`.
 Registered for later phases: `audit.log.exported` (arrives with export
 functionality). Update events for org children arrive with edit UIs.
 
+### Phase 02 — IMPLEMENTED (products module, 2026-08-05)
+
+| Event | Trigger |
+|---|---|
+| `products.unit.created` / `.archived` | Unit lifecycle |
+| `products.category.created` / `.archived` | Category lifecycle |
+| `products.attribute.created` / `.value_added` / `.archived` | Attribute lifecycle |
+| `products.product.created` / `.updated` | Product create/edit |
+| `products.product.status_changed` / `.archived` | Status machine (reason required) |
+| `products.variant.created` / `.status_changed` / `.archived` | Variant lifecycle |
+| `products.product.intelligence_viewed` | Confidential read (non-critical; NO values in payload) |
+| `products.product.intelligence_updated` | Confidential write (field-name lists only, never values) |
+| `products.product.image_uploaded` / `.image_removed` | Image registry (object ops additionally emit `storage.file.*`) |
+| `products.import.validated` / `.applied` / `.discarded` | CSV import pipeline |
+
+Full trigger/payload notes: `modules/products/PRODUCTS_AUDIT_EVENTS.md`.
+
 ### Later phases
 
 Registered in each module's `*_AUDIT_EVENTS.md` and appended here when the

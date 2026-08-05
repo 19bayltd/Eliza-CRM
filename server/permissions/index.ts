@@ -10,7 +10,7 @@ import {
   type PermissionRequirement,
 } from "@/server/permissions/evaluate";
 
-/** Phase 01 permission catalog (kept in sync with the reference-data migration). */
+/** Permission catalog (kept in sync with the reference-data migrations). */
 export const PERMISSIONS = {
   companyView: "organization.company.view",
   companyCreate: "organization.company.create",
@@ -28,6 +28,15 @@ export const PERMISSIONS = {
   auditView: "audit.log.view",
   fileUpload: "storage.file.upload",
   fileDownload: "storage.file.download",
+  // Phase 02 — product master
+  productsView: "products.view",
+  productsCreate: "products.create",
+  productsUpdate: "products.update",
+  productsArchive: "products.archive",
+  productsCatalogManage: "products.catalog.manage",
+  productsIntelligenceView: "products.intelligence.view",
+  productsImport: "products.import",
+  productsExport: "products.export",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

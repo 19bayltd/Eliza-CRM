@@ -6,8 +6,8 @@ Separated buckets (Supabase Storage), created as their phases require them:
 
 | Bucket | Classification | Access |
 |---|---|---|
-| `public-product-images` | Public | Public read; authorized write |
-| `confidential-product-images` | Confidential | Signed URLs, permissioned |
+| `public-product-images` | Internal (company-public) | PRIVATE bucket, signed URLs for any scoped company user (D-017: open-web exposure deferred to storefront phases; becomes Public then) |
+| `confidential-product-images` | Confidential | Signed URLs, permissioned (`products.intelligence.view`), access logged |
 | `supplier-documents` | Confidential | Signed URLs, permissioned, access logged |
 | `employee-documents` | Highly Confidential | Signed URLs, narrow permission, every access logged, approval where required |
 | `report-imports` | Confidential | Server-side only |
@@ -43,6 +43,9 @@ rule approves purge.
 
 ## 5. Status
 
-Policy defined in Phase 00. Bucket provisioning, metadata table, server
-storage service, and audit wiring are Phase 01 scope (private storage
-foundation); additional buckets arrive with their modules.
+Policy defined in Phase 00. Phase 01 delivered the metadata table,
+server storage service, audit wiring, and `system-exports`. Phase 02
+(2026-08-05) provisioned `public-product-images` and
+`confidential-product-images` (both private; per-bucket
+upload/download permissions in `server/storage`; image/*, 10 MB, 300 s
+signed URLs). Remaining buckets arrive with their modules.

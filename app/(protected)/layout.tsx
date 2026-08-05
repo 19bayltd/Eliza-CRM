@@ -43,6 +43,9 @@ export default async function ProtectedLayout({
   const showAdmin = ctx.roleGrants.some((g) =>
     g.permissions.some((p) => ADMIN_PERMISSIONS.includes(p)),
   );
+  const showProducts = ctx.roleGrants.some((g) =>
+    g.permissions.includes(PERMISSIONS.productsView),
+  );
 
   return (
     <div>
@@ -50,6 +53,7 @@ export default async function ProtectedLayout({
         <span className="brand">Eliza OS</span>
         <nav aria-label="Main navigation">
           <Link href="/dashboard">Dashboard</Link>
+          {showProducts && <Link href="/products">Products</Link>}
           {showAdmin && <Link href="/admin/organization">Administration</Link>}
         </nav>
         <span className="spacer" />

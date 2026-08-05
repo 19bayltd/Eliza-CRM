@@ -19,6 +19,27 @@ const BUCKETS = {
     maxSizeBytes: 50 * 1024 * 1024,
     allowedMimePrefixes: ["text/csv", "application/json", "application/pdf"],
     signedUrlSeconds: 300,
+    uploadPermission: PERMISSIONS.fileUpload,
+    downloadPermission: PERMISSIONS.fileDownload,
+  },
+  // Phase 02 product images. "Public" tier means visible to any scoped
+  // company user — the bucket itself stays private and is served through
+  // signed URLs; open-web exposure arrives with the storefront phases.
+  "public-product-images": {
+    classification: "internal",
+    maxSizeBytes: 10 * 1024 * 1024,
+    allowedMimePrefixes: ["image/"],
+    signedUrlSeconds: 300,
+    uploadPermission: PERMISSIONS.productsUpdate,
+    downloadPermission: PERMISSIONS.productsView,
+  },
+  "confidential-product-images": {
+    classification: "confidential",
+    maxSizeBytes: 10 * 1024 * 1024,
+    allowedMimePrefixes: ["image/"],
+    signedUrlSeconds: 300,
+    uploadPermission: PERMISSIONS.productsIntelligenceView,
+    downloadPermission: PERMISSIONS.productsIntelligenceView,
   },
 } as const;
 
@@ -51,7 +72,7 @@ export async function uploadPrivateFile(params: {
   const cfg = BUCKETS[bucket];
   const session = await requireActiveUser();
   await requirePermission({
-    permission: PERMISSIONS.fileUpload,
+    permission: cfg.uploadPermission,
     companyId: params.companyId,
   });
 
@@ -124,7 +145,7 @@ export async function createSignedDownloadUrl(fileId: string): Promise<string> {
 
   const bucket = assertBucket(meta.bucket);
   await requirePermission({
-    permission: PERMISSIONS.fileDownload,
+    permission: BUCKETS[bucket].downloadPermission,
     companyId: meta.company_id,
   });
 
@@ -165,7 +186,7 @@ export async function deletePrivateFile(fileId: string): Promise<void> {
 
   const bucket = assertBucket(meta.bucket);
   await requirePermission({
-    permission: PERMISSIONS.fileUpload,
+    permission: BUCKETS[bucket].uploadPermission,
     companyId: meta.company_id,
   });
 

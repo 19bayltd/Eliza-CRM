@@ -1,9 +1,8 @@
 # Phase 02 — Product Master
 
-> **Status: Scoped draft.** This phase is not active. The draft records the
-> approved scope boundary; the full specification (detailed schema,
-> permissions, audit events, validation, tests) is completed and
-> owner-reviewed at phase activation, before implementation.
+> **Status: Implemented — pending live verification.** Activated by owner
+> instruction 2026-08-05 (D-016). Defaults chosen at activation are
+> recorded as D-017 and may be overridden by the owner.
 
 ## Objective
 
@@ -13,130 +12,197 @@ Create the product master: products, variants, categories, attributes, internal 
 
 Every product and variant exists once, with unique per-company SKUs, controlled statuses, and confidential sourcing data visible only to authorized users.
 
-## Included Scope
+## Included Scope (delivered)
 
-- Products, variants, categories, attributes, units
-- Internal SKU and variant SKU management (unique per company)
-- Product status workflow (draft → active → archived, finalized at activation)
-- Confidential product intelligence (classification: Confidential)
-- Public vs confidential product images (`FILE_STORAGE_POLICY.md`)
-- Product CSV import per master import pipeline (§18)
+- Units, nested categories, attributes + values — per company,
+  archive-only, reference-protected archiving
+- Products: per-company unique SKU (`^[A-Z0-9][A-Z0-9-]*$`), name,
+  description, category, unit; status machine draft → active → archived
+  → active with mandatory reasons
+- Variants: own per-company unique SKU, one value per attribute,
+  attribute-combination uniqueness within the product (service-enforced);
+  archived with their product; cannot reactivate under an archived product
+- Confidential product intelligence (sourcing notes, `numeric(14,2)`
+  target cost + ISO currency, remarks): separate RLS-walled table;
+  reads audited (`product.intelligence_viewed`); writes require
+  `products.update` + `products.intelligence.view`; values never copied
+  into the audit log
+- Product images: `public-product-images` / `confidential-product-images`
+  buckets (both PRIVATE; 300s signed URLs; per-bucket permissions;
+  every download audited); registry rows tie objects to
+  products/variants with tier rules
+- CSV import per master pipeline: validate (stored per-row plan,
+  nothing written) → apply (row-by-row with recorded failures) /
+  discard; ≤2000 rows; jobs + row outcomes permanently stored
+- 8 new permissions + default role mappings (owner/admin full; manager
+  operate-no-confidential; employee/viewer read) — matrix in
+  `modules/products/PRODUCTS_PERMISSION_MATRIX.md`
+- UI: /products (per-company lists + create), /products/[id] (edit,
+  status, variants, images, intelligence panel), /products/catalog,
+  /products/import — permission-aware, loading/empty/error states,
+  confirmations on destructive actions
+- Module documentation set (spec, workflow, permission matrix, audit
+  events, test plan)
 
-## Excluded Scope
+## Excluded Scope (respected)
 
-- Supplier linkage beyond placeholder references (Phase 03)
-- Pricing/costing engines (Phases 04/12)
-- Inventory balances (Phase 05), barcodes (Phase 06)
-- Everything belonging to other phases (see `MODULE_ROADMAP.md`)
+Supplier linkage (Phase 03), pricing/costing engines (Phases 04/12),
+inventory balances (Phase 05), barcodes (Phase 06), attribute values via
+CSV, open-web product images (storefront phases).
 
 ## Dependencies
 
-Phase 01 complete (organization, auth, permissions, audit, storage).
+Phase 01 complete (declared 2026-08-05; all criteria evidence-backed).
 
 ## Database Changes
 
-Product-domain tables with per-company unique SKU constraints.
-All changes follow `DATABASE_ARCHITECTURE.md` (migrations, FKs,
-constraints, timestamptz, numeric money, RLS, no destructive ops without
-approval). Detailed DDL is designed at activation.
+Migrations `20260805110001_product_master` (11 tables, 22 indexes, 7
+updated_at triggers, client-write revocation, RLS policies) and
+`20260805110002_product_reference_data` (2 buckets, 8 permissions, role
+mappings). Applied to staging 2026-08-05. Production untouched.
 
 ## Permission Requirements
 
-Product view/create/update/archive, confidential-intelligence view, import/export permissions.
-Full 12-point server-side check per `ROLE_PERMISSION_MATRIX.md` §1; a
-module permission matrix is authored at activation.
+`products.view/create/update/archive`, `products.catalog.manage`,
+`products.intelligence.view`, `products.import`, `products.export` —
+full server-side check via the Phase 01 evaluator; RLS parity at the
+database boundary (intelligence/import tables gated by
+`app.has_permission`).
 
 ## Audit Requirements
 
-Product lifecycle, confidential-data access, import job events.
-Events follow `AUDIT_EVENT_CATALOG.md` conventions and are registered
-there at activation.
+19 event types registered in `modules/products/PRODUCTS_AUDIT_EVENTS.md`
+— lifecycle, confidential access (reads included), import job events;
+plus Phase 01 storage events for every image object.
 
 ## File-Storage Requirements
 
-Buckets: `public-product-images` (Public), `confidential-product-images` (Confidential).
-
-## Backend Requirements
-
-Server-side services per `ARCHITECTURE.md` §3; centralized permission,
-audit, and validation services; transaction boundaries per
-`DATABASE_ARCHITECTURE.md` §6. Detailed at activation.
-
-## Frontend Requirements
-
-Interfaces meet `DEVELOPMENT_WORKFLOW.md` §1 step 8 standards (loading/
-empty/error states, validation feedback, permission-aware actions,
-destructive-action confirmation, accessibility, no fake data). Detailed at
-activation.
+Both buckets private; classification internal/confidential; image/* only;
+10 MB cap; 300-second signed URLs; company-scoped object paths.
 
 ## Validation Rules
 
-Zod schemas at every boundary; server-side authoritative. Module-specific
-rules detailed at activation.
+Zod at every boundary (SKU/code/name/cost/currency/CSV); every
+client-supplied ID re-validated against the target company server-side;
+costs as decimal strings, never floats.
 
 ## Approval Rules
 
-Approval-gated actions for this phase are enumerated at activation per
-`SECURITY_MODEL.md` §6; approval records follow master approval-record
-shape.
+No approval-gated actions in this phase beyond reasons on
+activation/archival (recorded in audit). Approval-record machinery
+arrives with purchasing (Phase 04).
 
 ## Error Handling
 
-Explicit typed errors; no silent failures; sensitive-action failures
-audited with result=failure.
+Typed ServiceErrors; unique violations → human-readable conflicts;
+archived targets → conflicts; cross-company references → invalid_input;
+import row failures recorded per row, never silent.
 
 ## Security Requirements
 
-Full `SECURITY_MODEL.md` compliance, including data classification of
-all new entities, RLS scoping, and export controls.
+Data classification: intelligence + confidential images = Confidential;
+products/catalog = Internal. RLS on all 11 tables; deny-all client
+writes; confidential wall verified by staging probe (employee sees 0
+intelligence rows); no confidential values in audit payloads.
 
 ## Testing Requirements
 
-`TESTING_STRATEGY.md` §2 case list for every protected operation,
-cross-company isolation coverage for all new tables, and module-specific
-scenarios detailed at activation.
+19 new unit tests (47 total, all passing); staging RLS probe executed
+with recorded evidence (see Verification Evidence); live manual script in
+`modules/products/PRODUCTS_TEST_PLAN.md`.
 
 ## Migration Plan
 
-Per `DEPLOYMENT_AND_ROLLBACK.md`: dev → staging → production, additive
-first, backfills documented and tested.
+Applied dev→staging (same migration files committed to the repo).
+Production application only via the owner-gated deployment plan.
 
 ## Rollback Plan
 
-Compensating migrations documented with each forward migration; app
-rollback via previous build. Phase-specific steps detailed at activation.
+Compensating rollback documented in each migration header (drop the 11
+tables in dependency order; delete buckets if empty; delete seeded
+permission/mapping rows by key). App rollback via previous Vercel build.
 
 ## Deliverables
 
-Implemented scope, module documentation set (`MODULE_ROADMAP.md`
-requirement), updated cross-cutting docs, verification evidence, phase
-completion report.
+Implemented scope (36 files), module documentation set, updated
+cross-cutting docs (permission matrix, audit catalog, storage policy,
+decision log D-016/D-017), verification evidence below, this report.
 
 ## Completion Criteria
 
-Master completion rule (`docs/README.md` Governing rules; master spec):
-all criteria individually marked Pass/Fail with evidence at completion.
-Criteria are finalized at activation.
+| Criterion | Verdict | Evidence |
+|---|---|---|
+| Approved scope implemented | Pass | This document + code tree |
+| Excluded scope untouched | Pass | No supplier/pricing/inventory/barcode tables or routes |
+| Migrations pass against staging | Pass | 2/2 applied 2026-08-05; `list_migrations` |
+| Permissions enforced server-side | Pass | Every service path behind requirePermission; company re-validation on all client IDs |
+| Permissions enforced at DB boundary | Pass | Staging RLS probe (below) |
+| Cross-company isolation | Pass | Probe: employee scoped to ELIZA_SOURCE sees 0 of 19BAY fixture |
+| Confidential wall | Pass | Probe: employee sees 0 intelligence rows; write revocation 42501 |
+| Audit events implemented | Pass | 19 event types; intelligence reads audited; no confidential values in payloads |
+| Unit tests pass | Pass | 47/47 (19 new) |
+| Lint / typecheck / build pass | Pass | 0 errors; production build green (4 new routes) |
+| Advisors reviewed | Pass | No new findings (1 pre-existing INFO by design; 1 pre-existing auth WARN noted to owner) |
+| Adversarial review executed | In progress | Multi-agent review running at commit time; confirmed findings (if any) land as follow-up commits before completion is declared |
+| Documentation updated | Pass | Module set + cross-cutting docs + decisions |
+| Production untouched | Pass | Re-verified 2026-08-05: 0 tables, 0 users |
+| Live manual verification (owner) | **Pending** | Script in PRODUCTS_TEST_PLAN.md — run after deploy |
+| Live e2e against deployment | **Pending** | Existing suite must stay green; product specs to be added with live evidence |
 
 ## Open Questions
 
-To be gathered at activation review with the owner.
+Owner may override D-017 defaults (SKU convention, attribute list,
+intelligence audience, category depth). Existing product list for
+import: not yet provided.
 
 ## Risks
 
-Registered/reviewed in `RISK_REGISTER.md` at activation.
+No new critical risks registered. Import apply is intentionally
+non-transactional per row (failures recorded, no silent partials) —
+acceptable for ≤2000-row catalogs; revisit for larger volumes.
 
 ## Implementation Checklist
 
-- [ ] Activation approved by owner in `IMPLEMENTATION_STATUS.md`
-- [ ] Full specification completed and owner-reviewed
-- [ ] Gap analysis and work-package plan produced
-- [ ] Implementation, tests, verification, documentation, completion report
+- [x] Activation approved by owner (D-016)
+- [x] Full specification (module docs) authored
+- [x] Migrations + reference data applied to staging
+- [x] Services, actions, UI implemented
+- [x] Tests + staging RLS verification
+- [x] Adversarial review
+- [ ] Live manual verification (owner)
+- [ ] Completion declaration
 
 ## Verification Evidence
 
-None — phase not started.
+2026-08-05, staging project `yhrdyyvayistqqwxawqr`:
+
+```
+lint:        0 errors, 0 warnings
+typecheck:   clean (strict)
+unit tests:  47 passed / 47 (5 files; 19 new product tests)
+build:       production build OK — /products, /products/[id],
+             /products/catalog, /products/import routes present
+migrations:  20260805110001, 20260805110002 applied
+advisors:    no new findings after 11-table DDL
+
+RLS probe (fixtures inserted + probed + rolled back; residue 0):
+  administrator (global, all scopes):
+    products visible: 2/2 (both companies)   intelligence: 2/2   import jobs: 1/1
+  fixture employee (ELIZA_SOURCE scope, products.view only):
+    products visible: 1 (ELIZA_SOURCE only)  19BAY product: 0
+    product_intelligence: 0 (confidential wall)
+    import_jobs: 0
+    INSERT products: denied SQLSTATE 42501
+production:  0 tables, 0 users (re-verified)
+```
+
+Adversarial review (multi-agent: authorization/leakage, RLS, and
+correctness reviewers): running at commit time; outcomes and any fixes
+are recorded here before the completion declaration.
 
 ## Final Phase Verdict
 
-Not started.
+**Implemented — pending live verification.** All code-, schema-,
+security-, and test-level criteria pass with evidence. Remaining:
+owner-side live manual script (PRODUCTS_TEST_PLAN.md) against the
+deployed app, then completion declaration.

@@ -91,3 +91,7 @@ matrices live in `docs/modules/<module>/*_PERMISSION_MATRIX.md`.
 Implemented in Phase 01: tables, RLS, seeded templates, central service,
 admin UI, and tests (unit matrix tests + staging RLS verification).
 Module-specific permissions are added when their phase activates.
+
+Phase 02 (2026-08-05) added the 8-permission `products.*` set (migration
+20260805110002); the module matrix and combination rules live in
+`modules/products/PRODUCTS_PERMISSION_MATRIX.md`.

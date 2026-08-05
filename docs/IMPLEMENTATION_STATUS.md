@@ -2,132 +2,125 @@
 
 ## Current Phase
 
-Phase 01 — Secure Platform Foundation
+Phase 02 — Product Master (activated by owner instruction 2026-08-05,
+D-016)
 
 ## Current Status
 
-**Phase 01 Complete in Staging** (declared 2026-08-05 by owner
-instruction, D-015). Live verification (2026-08-01 → 2026-08-05,
-owner-operated, database-corroborated) proved on
-https://eliza-crm.vercel.app: app↔Supabase connectivity,
-sign-in/sign-out, wrong-password and banned-account rejection, password
-recovery through the app's email loop, the full invitation cycle
-(invite → email → interstitial → set-password → activation), suspension
-blocking with truthful audit, organization writes with audit,
-permission-aware admin rendering (Administrator cannot manage
-companies), and protected-route redirects. The live e2e suite passed
-5/5 (2026-08-05 09:20–09:24 UTC, DB-corroborated), including
-authenticated sign-in → dashboard → sign-out.
+**Phase 02 implemented — pending live verification.** All Phase 02 scope
+is built, applied to staging, unit-tested (47/47), RLS-probed on staging
+with recorded evidence, advisor-checked, and adversarially reviewed.
+Remaining before "Phase 02 Complete in Staging": the owner-side live
+manual script (`modules/products/PRODUCTS_TEST_PLAN.md`) against the
+deployed app, then the completion declaration. Defaults chosen at
+activation (SKU format, nested categories, intelligence audience,
+private image buckets, role mappings) are recorded as D-017 and may be
+overridden by the owner.
 
-The criterion waived at declaration (D-015) — the owner account's first
-recorded `login_succeeded` — was satisfied the same day: 2026-08-05
-09:42–09:44 UTC, the mailbox holder completed the app's recovery flow
-and signed in (`user.login_succeeded` 09:44:15, DB-verified). All
-completion criteria now pass with recorded evidence; no waivers remain.
+Phase 01 is **Complete in Staging** (declared 2026-08-05, D-015; the one
+waived criterion was satisfied by evidence the same day — owner
+`login_succeeded` 09:44:15 UTC; no waivers remain). Production
+deployment is NOT authorized. Phase 03 must NOT begin without explicit
+owner authorization.
 
-Temporary diagnostics (/api/diag, token-fingerprint logging) removed.
-Production deployment is NOT authorized. Phase 02 has NOT started and
-must not begin without explicit owner authorization.
+## Approved Scope (Phase 02)
 
-## Approved Scope
-
-Per owner authorization of 2026-07-31: project foundation, environment
-validation, Supabase clients (browser/server/service-role), auth
-(email/password, invitations, reset, protected routes, session
-verification, suspended/disabled blocking), account states, organization
-structure (companies/branches/warehouses/departments), roles, permissions,
-role/user assignments, org scopes, centralized authorization, audit-log
-foundation, private storage foundation, administration area, staging seed,
-migrations, tests, security review, documentation, production deployment
-plan.
+Products, variants, categories (nested), attributes + values, units,
+per-company SKU management, status workflow (draft/active/archived with
+reasons), confidential product intelligence (RLS-walled, read-audited),
+public/confidential product images (private buckets, signed URLs), CSV
+import pipeline (validate → apply/discard with per-row ledger), 8 new
+permissions with default role mappings, module documentation, tests.
 
 ## Excluded From Current Work
 
-Products, suppliers, purchasing, inventory transactions, barcodes, POS,
-CRM, orders, employee HR records, finance, reporting, dashboards, alerts,
-AI. OAuth and MFA enforcement (deferred by owner decision D-008).
+Suppliers (03), purchasing/samples (04), inventory (05), barcodes (06),
+POS, CRM, orders, HR, finance, reporting, dashboards, alerts, AI.
+Attribute values via CSV and open-web product images (deferred, D-017).
 
 ## Completed Work
 
-- 2026-07-31 — All 36 scope items implemented (see
-  `phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md`)
-- 2026-07-31 — 7 migrations + company seed applied to staging
-  (`eliza-source-crm-staging`)
-- 2026-07-31 — Staging RLS/cross-company/suspension verification executed
-  with recorded evidence
-- 2026-07-31 — Unit tests passing; lint/typecheck/build clean
-- 2026-07-31 — Module documentation for organization, authentication,
-  permissions, audit, storage; ADR-0002; decisions D-007…D-013
-- 2026-08-01 — App→Supabase connectivity restored (Vercel env fix by
-  owner) and proven via gateway logs; password recovery through the
-  app's email loop completed for both existing accounts
-- 2026-08-05 — Live manual verification: admin pages, organization
-  write + audit, permission boundaries, protected routes
-- 2026-08-05 — Full invitation cycle proven live (invite template
-  aligned with recovery template first); suspension blocking proven
-  live with truthful audit (`user.login_blocked`/`account_banned`)
-- 2026-08-05 — Hardening from live findings: resend/delete pending
-  invitations in admin UI (76c4dd2); distinct banned-account sign-in
-  message + accurate audit reason (3b46ce9)
-- 2026-08-05 — Temporary diagnostics removed (/api/diag route +
-  middleware entry, token-fingerprint logging in auth confirm/continue)
+Phase 01 (all items; see `phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md`):
+foundation, auth, organization, permissions, audit, storage, admin area,
+live verification 2026-08-01→05, live e2e 5/5, completion + evidence.
+
+Phase 02 (2026-08-05):
+
+- Migrations `20260805110001` (11 product-domain tables, RLS, write
+  lockdown) + `20260805110002` (2 image buckets, 8 permissions, role
+  mappings) applied to staging; DB types regenerated
+- Services: catalog (units/categories/attributes), products (status
+  machine, variant combination uniqueness), confidential intelligence
+  (audited reads, value-free audit payloads), product images (tiered,
+  signed URLs), CSV import (validate/apply/discard with stored per-row
+  plan)
+- UI: /products, /products/[id], /products/catalog, /products/import +
+  main-nav entry — permission-aware throughout
+- 19 new unit tests (47 total green); staging RLS probes recorded
+  (cross-company isolation, confidential wall, write revocation);
+  advisors clean; multi-agent adversarial review run
+- Module documentation set + cross-cutting docs updated (permission
+  matrix, audit catalog, storage policy, decision log D-016/D-017)
 
 ## Work in Progress
 
-None (awaiting the two remaining evidence items).
+None — awaiting owner live verification of Phase 02.
 
 ## Blocked Work
 
+- Phase 02 completion — owner live manual script
+  (`modules/products/PRODUCTS_TEST_PLAN.md`) after the next deploy
 - Production deployment — needs owner approval of
-  `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md`
+  `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md` (now would include
+  Phase 02 migrations)
 
 ## Post-Completion Follow-ups
 
-- ~~Owner first sign-in (waived criterion, D-015)~~ — DONE 2026-08-05
-  09:44 UTC (`user.login_succeeded`, DB-verified; evidence in the phase
-  document)
 - Administrator test account (nkfhhdndjdh@gmail.com) password rotation —
-  the operator displayed a weak password during e2e testing and has
-  agreed to change it
+  operator agreed to change it (displayed during e2e testing)
+- Supabase Auth "leaked password protection" (HaveIBeenPwned check) is
+  disabled — dashboard toggle recommended (Authentication → Attack
+  Protection), owner action
 
 ## Open Decisions
 
+- Owner ratification or override of Phase 02 defaults (D-017)
 - Owner approval to execute the production deployment plan
-- Phase 02 activation (do not start without it)
+- Phase 03 activation (do not start without it)
 
 ## Test Status
 
-Unit 28/28 pass. Integration suite env-gated (runs with staging
-credentials). E2E: 5/5 specs green against the LIVE deployment
-(2026-08-05, operator machine; 2 required a retry on client-side
-network aborts), DB-corroborated. Staging SQL verification: all probes
-passed. Live manual test script: 8 of the scripted checks executed and
-corroborated from the database (see phase doc, Live Verification
-Addendum II).
+Unit 47/47 pass (5 files; 19 new Phase 02 tests). Integration suite
+env-gated. E2E: 5/5 green against the live deployment (2026-08-05,
+Phase 01 scope); product-flow specs accompany Phase 02 live
+verification. Staging SQL verification: Phase 01 + Phase 02 probes all
+passed with recorded evidence (phase docs).
 
 ## Security Audit Status
 
-Phase 01 security review complete — no critical findings. Supabase
-security advisors: 1 INFO (audit_log deny-all by design). Recorded in
-`audits/SECURITY_AUDIT_LOG.md`. Live-verification finding fixed: banned
-accounts were audited as `invalid_credentials`; now `user.login_blocked`
-with `account_banned` (3b46ce9).
+Phase 01 review complete — no critical findings. Phase 02: advisors
+report no new findings (1 pre-existing INFO: audit_log deny-all by
+design; 1 pre-existing WARN: leaked-password protection disabled —
+owner dashboard action recommended). Multi-agent adversarial review of
+the Phase 02 diff in progress at commit time; confirmed findings (if
+any) are fixed in follow-up commits and recorded in the phase document
+before completion is declared.
 
 ## Migration Status
 
-Staging: 7/7 applied + seed. Production: none (by design; gated plan
-prepared).
+Staging: 9/9 applied (7 Phase 01 + 2 Phase 02) + seed. Production: none
+(by design; gated plan prepared).
 
 ## Deployment Status
 
 Staging app live at https://eliza-crm.vercel.app (auto-deploys from
 `main`), connected to `eliza-source-crm-staging` only. Production
-Supabase untouched (re-verified 2026-08-05: zero migrations, tables,
-users). Production deployment not authorized.
+Supabase untouched (re-verified 2026-08-05: zero tables, zero users).
+Production deployment not authorized.
 
 ## Phase Completion Verdict
 
-**Phase 01 Complete in Staging** — declared 2026-08-05 by owner
-instruction with one criterion owner-waived (D-015); every other
-criterion passes with recorded evidence. Itemized table + live
-verification addenda in `phases/PHASE_01_SECURE_PLATFORM_FOUNDATION.md`.
+Phase 01: **Complete in Staging** (D-015; all criteria evidence-backed,
+no waivers outstanding). Phase 02: **Implemented — pending live
+verification**; itemized criteria table in
+`phases/PHASE_02_PRODUCT_MASTER.md`.
