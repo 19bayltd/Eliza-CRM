@@ -42,17 +42,30 @@ export async function signInAction(
     password: parsed.data.password,
   });
   if (error || !data.user) {
+    // Suspension/locking bans the auth user, and the auth server rejects
+    // banned accounts before the account-state gate below can run. It does
+    // so without confirming the password, so surface "not active" rather
+    // than the specific status — the caller may not hold the credential.
+    const banned = error?.code === "user_banned";
     await writeAudit(
       {
         module: "auth",
-        action: "user.login_failed",
+        action: banned ? "user.login_blocked" : "user.login_failed",
         actorEmail: parsed.data.email,
         result: "failure",
-        failureReason: "invalid_credentials",
+        failureReason: banned
+          ? "account_banned"
+          : (error?.code ?? "invalid_credentials"),
       },
       { critical: false },
     );
-    return { ok: false, code: "unauthenticated", message: "Invalid email or password" };
+    return banned
+      ? {
+          ok: false,
+          code: "account_inactive",
+          message: "This account is not active. Contact an administrator.",
+        }
+      : { ok: false, code: "unauthenticated", message: "Invalid email or password" };
   }
 
   // Account-state gate: any non-active state signs the session back out.
