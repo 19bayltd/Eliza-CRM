@@ -104,7 +104,10 @@ Phase 04 (2026-08-06):
 - Owner live verification 9/9 by two real users, each confirmed against
   the database; 5 self-review/advisor findings fixed
 - Module documentation set + cross-cutting docs (permission matrix,
-  audit catalog, storage policy, D-021/D-022/D-023)
+  audit catalog, storage policy, module roadmap, risk register R-013→
+  R-016, D-021/D-022/D-023) and the four audit logs — code, database,
+  security, release — which had gone unupdated since Phase 01 and were
+  backfilled for Phases 02–04 on 2026-08-06
 
 ## Work in Progress
 

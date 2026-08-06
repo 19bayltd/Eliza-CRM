@@ -8,9 +8,9 @@ as foundational infrastructure.
 |---|---|---|---|
 | 00 | Governance & documentation | — | Complete |
 | 01 | organization, authentication, permissions, audit, storage | `organization/`, `authentication/`, `permissions/`, `audit/`, `storage/` | Implemented on staging (production gated) |
-| 02 | Product master | `products/` | Not started |
-| 03 | Supplier management (China, Bangladesh, quotations) | `suppliers/` | Not started |
-| 04 | Purchasing and samples | `purchasing/` | Not started |
+| 02 | Product master | `products/` | Complete in Staging (production gated) |
+| 03 | Supplier management (China, Bangladesh, quotations) | `suppliers/` | Complete in Staging (production gated) |
+| 04 | Purchasing and samples | `purchasing/` | Complete in Staging (production gated) |
 | 05 | Inventory and warehouse | `inventory/` | Not started |
 | 06 | Barcode management | `barcode/` | Not started |
 | 07 | POS | `pos/` | Not started |

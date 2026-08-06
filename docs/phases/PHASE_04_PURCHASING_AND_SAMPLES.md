@@ -162,7 +162,7 @@ verification evidence, this report.
 | Lint / typecheck / build pass | Pass | 0 errors, 0 warnings; 5 new routes present |
 | Advisors reviewed | Pass | Both new WARNs fixed (see finding 1); remaining INFOs are the intentional deny-all tables |
 | Review executed | Pass | Self-review of the diff — 4 findings fixed; **not** the 3-reviewer adversarial process used in Phases 02–03 (see Review Findings) |
-| Documentation updated | Pass | Module set + cross-cutting docs + D-021 |
+| Documentation updated | Pass | Module set + cross-cutting docs + D-021/022/023 + the four audit logs (see finding 6) |
 | Production untouched | Pass | No operations against pbyjyamqmbotixahkknu |
 | Live manual verification (owner) | Pass | Full request→approval→order→receipt→sample run by two real users 2026-08-06; every result confirmed against the database — see Live manual verification |
 
@@ -191,6 +191,8 @@ see samples at all.
 - [x] Services, actions, UI implemented
 - [x] Unit tests + staging probes
 - [x] Live manual verification (owner, 2026-08-06)
+- [x] Cross-cutting docs: permission matrix, audit catalog, storage
+      policy, module roadmap, risk register, and the four audit logs
 - [x] Completion declaration
 
 ## Verification Evidence
@@ -312,6 +314,16 @@ remains a recommended follow-up before production.
    forgetting to update it is the failure itself. Four further unhinted
    embeds (two variant lookups, three role lookups) were named at the
    same time; none was ambiguous yet.
+
+6. **Cross-cutting audit logs were never updated — for this phase or the
+   two before it.** `CODE_AUDIT_LOG.md` states that every phase
+   completion appends an entry; Phases 02, 03 and 04 appended none, and
+   the database, security and release logs were equally stale. This is
+   risk R-011 (documentation drift) actually materializing, and I only
+   found it because the owner asked whether documentation was complete
+   rather than taking my word for it. All four are backfilled with
+   entries marked as backfilled, `MODULE_ROADMAP.md` no longer says the
+   delivered modules are "Not started", and R-016 records the miss.
 
 Accepted risks (recorded, not fixed):
 

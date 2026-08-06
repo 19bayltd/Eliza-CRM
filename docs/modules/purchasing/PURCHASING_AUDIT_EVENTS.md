@@ -18,7 +18,8 @@ money.
 | `purchase_order.created` | Draft order created | number, supplier, line count |
 | `purchase_order.issued` | Committed to supplier | number, supplier, currency |
 | `purchase_order.cancelled` | Cancelled (reason required) | number, previous status |
-| `purchase_order.cost_viewed` | Prices exposed to a user | `{orders_with_prices: n}` — count only |
+| `purchase_order.cost_viewed` | Prices exposed to a user | `{lines_with_prices: n}` — count only |
+| `purchase_order.orphan_cleanup_failed` | A line's price insert failed AND removing the orphaned line also failed (`result=failure`) | number, line id |
 | `purchase_receipt.recorded` | Receipt posted atomically | GRN number, PO number, line count, resulting PO status |
 | `purchase_receipt.discrepancy` | Damaged / missing / extra present | GRN number, per-line quantities |
 | `sample.requested` | Sample raised | number, supplier, product |
