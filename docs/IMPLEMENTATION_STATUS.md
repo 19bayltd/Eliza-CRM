@@ -2,15 +2,14 @@
 
 ## Current Phase
 
-Phase 04 — Purchasing and Samples (activated by owner instruction
-2026-08-06, D-021). Phase 03 closed **Complete in Staging** the same day
-(D-019 activation, D-020 completion).
+Phase 04 — Purchasing and Samples: **Complete in Staging** 2026-08-06
+(D-021 activation, D-023 completion). No phase is active; Phase 05
+requires explicit owner authorization.
 
 ## Current Status
 
-**Phase 04 implemented — pending owner live verification (see Work in
-Progress).** Phase 03 closed Complete in Staging earlier the same day:
-supplier directory,
+**Phase 04 Complete in Staging (2026-08-06)** — see Work in Progress for
+the detail. Phase 03 closed the same day: supplier directory,
 contacts, confidential quotations (prices RLS-walled behind a separate
 cost permission, reads audited, values never in audit payloads),
 currency-normalized comparison view, and private supplier documents are
@@ -86,19 +85,31 @@ Phase 03 (2026-08-06):
 - Module documentation set + cross-cutting docs (permission matrix,
   audit catalog, storage policy, D-019)
 
+Phase 04 (2026-08-06):
+
+- Migrations `20260806140001` (12 purchasing tables, composite company
+  FKs, permission-gated RLS, write lockdown), `20260806140002`
+  (numbering + atomic receiving functions), `20260806140003` (2 buckets,
+  12 permissions, role mappings, seeded approval thresholds), plus
+  hardening `20260806140004` (execute revoked from PUBLIC) and
+  `20260806140005` (over-receipt split)
+- Services: purchase requests with a submission-frozen total, the
+  approval engine (thresholds as data, self-approval refused), purchase
+  orders with an RLS deny-all cost table, atomic receiving, samples,
+  purchase documents and sample photos
+- UI: /purchasing, /purchasing/requests/[id], /purchasing/orders,
+  /purchasing/orders/[id], /purchasing/samples + nav entry
+- 21 purchasing unit tests plus a guard that fails the build on any
+  PostgREST embed missing its foreign key (87 total green)
+- Owner live verification 9/9 by two real users, each confirmed against
+  the database; 5 self-review/advisor findings fixed
+- Module documentation set + cross-cutting docs (permission matrix,
+  audit catalog, storage policy, D-021/D-022/D-023)
+
 ## Work in Progress
 
-**Phase 04 implemented — pending owner live verification.** Purchase
-requests, a configurable approval engine (thresholds as `approval_rules`
-rows, self-approval refused server-side), purchase orders with an
-RLS-walled cost table, atomic receiving, samples, and purchase documents
-(order paperwork and sample photos) are built, applied to staging, unit-tested (87/87), probed, and deployed
-via `main`. Remaining before "Phase 04 Complete in Staging": the
-owner-side live script (`modules/purchasing/PURCHASING_TEST_PLAN.md`),
-then the completion declaration. Note: this phase had a **self-review**
-rather than the three independent adversarial reviewers used in Phases
-02–03; an independent pass is a recommended follow-up. Defaults recorded
-as D-021.
+None. Phase 05 (Inventory and Warehouse) awaits explicit owner
+activation.
 
 ## Blocked Work
 

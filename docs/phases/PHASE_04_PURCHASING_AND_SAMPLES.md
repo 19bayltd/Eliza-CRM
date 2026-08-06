@@ -1,8 +1,11 @@
 # Phase 04 — Purchasing and Samples
 
-> **Status: Implemented — pending live verification.** Activated by owner
-> instruction 2026-08-06 ("go on"). Defaults chosen at activation are
-> recorded as D-021 and may be overridden by the owner.
+> **Status: Complete in Staging.** Activated by owner instruction
+> 2026-08-06 ("go on") and completed the same day after owner-run live
+> verification, each result confirmed against the database. Defaults
+> chosen at activation are recorded as D-021 and may be overridden.
+> Production deployment remains unauthorized, and an independent
+> adversarial review is still recommended before it.
 
 ## Objective
 
@@ -161,7 +164,7 @@ verification evidence, this report.
 | Review executed | Pass | Self-review of the diff — 4 findings fixed; **not** the 3-reviewer adversarial process used in Phases 02–03 (see Review Findings) |
 | Documentation updated | Pass | Module set + cross-cutting docs + D-021 |
 | Production untouched | Pass | No operations against pbyjyamqmbotixahkknu |
-| Live manual verification (owner) | **Pending** | Script in PURCHASING_TEST_PLAN.md |
+| Live manual verification (owner) | Pass | Full request→approval→order→receipt→sample run by two real users 2026-08-06; every result confirmed against the database — see Live manual verification |
 
 ## Open Questions
 
@@ -187,8 +190,8 @@ see samples at all.
 - [x] Migrations + reference data applied to staging
 - [x] Services, actions, UI implemented
 - [x] Unit tests + staging probes
-- [ ] Live manual verification (owner)
-- [ ] Completion declaration
+- [x] Live manual verification (owner, 2026-08-06)
+- [x] Completion declaration
 
 ## Verification Evidence
 
@@ -232,6 +235,34 @@ Staging probes (fixtures created, probed, removed; residue 0):
                  must be cleaned after the LAST probe, not mid-sequence.
 production:      untouched
 ```
+
+### Live manual verification (owner, 2026-08-06)
+
+Run in a browser against `eliza-crm.vercel.app` (staging database),
+company Eliza Source, by two real accounts: the owner
+(`apparelcreatorlimited@gmail.com`) and a Manager
+(`admanager.1and9@gmail.com`). Every observation was confirmed by
+querying rows and audit entries afterwards.
+
+| # | Check | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Raise and submit a request | Pass | `PR-2026-0001`; empty submit refused ("add at least one line") with no state change; total frozen at 25,000.0000 on submission |
+| 2 | Self-approval refused | Pass | Owner's own approval attempt refused; `purchase_request.self_approval_refused` written with `result=failure`; request stayed `submitted`, `decided_at` null |
+| 3 | Approval by another person | Pass | Manager approved PR-2026-0001; owner approved the Manager's PR-2026-0002 — requester and approver differ in both directions; `rule_applied` recorded on each |
+| 4 | Threshold escalation | Pass | 25,000 and 60,000 → `purchasing.request.approve`; `PR-2026-0003` at 600,000 → `purchasing.request.approve.high`, and the Manager was given no decision box |
+| 5 | Order issued from an approved request | Pass | `PO-2026-0001` issued; linked `PR-2026-0001` moved `approved → ordered` automatically; line editing closed |
+| 6 | Partial receipt with a discrepancy | Pass | `GRN-2026-0001`: 4 accepted + 1 damaged → order `partially_received`; `purchase_receipt.discrepancy` recorded the damaged unit; damaged did not count as delivered |
+| 7 | Completing receipt | Pass | `GRN-2026-0002`: 6 accepted → order `received`, accepted 10 of 10 |
+| 8 | Sample lifecycle | Pass | `SR-2026-0001` requested → dispatched (tracking DHL-12345) → received → evaluated `approved`, all timestamps set, in order |
+| 9 | Sample photo | Pass | Uploaded to `sample-photos` (avif, 60,273 bytes); `file.uploaded` + `purchase.document_uploaded` + `file.downloaded` on render |
+
+Not exercised in the browser: the **over-receipt split** (the owner
+entered the correct outstanding quantity rather than the deliberate
+over-count) and the **Manager price mask on a purchase order**. Both are
+covered by database-level evidence — the over-receipt probe stored 10
+accepted + 10 extra from a 20-unit claim, and the identical masking path
+was owner-verified in Phase 03 — but neither has been seen on screen
+here, and this report does not claim otherwise.
 
 ## Review Findings (self-review of the diff, 2026-08-06)
 
