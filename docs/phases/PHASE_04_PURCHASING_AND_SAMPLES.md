@@ -225,7 +225,11 @@ Staging probes (fixtures created, probed, removed; residue 0):
                  all other purchasing tables have exactly 1 select policy
   role mapping:  owner 12, administrator 12, manager 9, employee 3,
                  viewer 0 purchasing permissions
-  residue:       0 orders / lines / costs / receipts / requests / samples
+  residue:       0 after cleanup. NOTE: the first cleanup ran before the
+                 over-receipt probe was created, so PO-2026-9002 and its
+                 receipt survived and were visible to the owner during
+                 live testing; removed 2026-08-06 11:5x. Probe fixtures
+                 must be cleaned after the LAST probe, not mid-sequence.
 production:      untouched
 ```
 
