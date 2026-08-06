@@ -4,6 +4,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { requireActiveUser } from "@/server/auth/session";
 import {
+  getAccessContext,
   hasPermission,
   PERMISSIONS,
   requirePermission,
@@ -570,11 +571,19 @@ export async function cancelRequest(input: unknown): Promise<void> {
   });
 }
 
-/** Whether the acting user may decide this request (for UI gating). */
+/**
+ * Whether the acting user may decide this request (for UI gating). The
+ * server refuses regardless; this exists so the page does not offer a
+ * decision box it knows will be rejected — including to the requester,
+ * who can never decide their own request.
+ */
 export async function canDecideRequest(
   request: Tables<"purchase_requests">,
 ): Promise<boolean> {
   if (request.status !== "submitted") return false;
+  const ctx = await getAccessContext();
+  const requester = request.submitted_by ?? request.created_by;
+  if (requester && requester === ctx.userId) return false;
   const rule = await resolveApprovalRule({
     companyId: request.company_id,
     amount: String(request.submitted_total ?? "0"),

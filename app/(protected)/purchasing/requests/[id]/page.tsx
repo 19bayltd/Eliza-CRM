@@ -19,6 +19,16 @@ import { listCompanies } from "@/server/services/organization";
 
 export const dynamic = "force-dynamic";
 
+/** Money reads as 25,000.00 everywhere, not 25000 in one place and
+ *  25000.00 in another. Values arrive as decimal strings and are never
+ *  converted to floats for arithmetic — this is display only. */
+function money(value: string | number | null): string {
+  if (value === null) return "—";
+  const [int, frac = ""] = String(value).split(".");
+  const grouped = (int ?? "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${grouped}.${(frac + "00").slice(0, 2)}`;
+}
+
 /**
  * One purchase request: its lines, the frozen total an approver judges,
  * and the decision controls. The approve/reject block only renders for a
@@ -85,7 +95,7 @@ export default async function PurchaseRequestPage(props: {
         <p>
           <strong>
             {isDraft ? "Current total" : "Submitted total"}:{" "}
-            {isDraft ? currentTotal : (request.submitted_total ?? "—")} {currency}
+            {isDraft ? money(currentTotal) : money(request.submitted_total)} {currency}
           </strong>
           {!isDraft && (
             <>
@@ -132,10 +142,10 @@ export default async function PurchaseRequestPage(props: {
                     <td>{l.variantSku ?? "—"}</td>
                     <td>{l.quantity}</td>
                     <td>
-                      {l.estimated_unit_price} {currency}
+                      {money(l.estimated_unit_price)} {currency}
                     </td>
                     <td>
-                      {l.lineTotal} {currency}
+                      {money(l.lineTotal)} {currency}
                     </td>
                     <td>{l.notes ?? "—"}</td>
                   </tr>
@@ -194,6 +204,9 @@ export default async function PurchaseRequestPage(props: {
           <h2 style={{ marginTop: 0 }}>Request actions</h2>
           {isDraft && (
             <ActionForm
+              // Remount when the lines change so a previous "add a line"
+              // refusal does not linger once a line exists.
+              key={`submit-${lines.length}`}
               action={submitRequestAction}
               submitLabel="Submit for approval"
               successMessage="Submitted."
@@ -221,13 +234,19 @@ export default async function PurchaseRequestPage(props: {
         </div>
       )}
 
-      {isSubmitted && canDecide && (
+      {isSubmitted && !canDecide && (
         <div className="card">
           <h2 style={{ marginTop: 0 }}>Decision</h2>
           <p className="empty">
-            You cannot decide a request you submitted yourself — that separation
-            is enforced on the server.
+            Awaiting a decision from someone else — you cannot decide a request
+            you submitted, and the server refuses it regardless of permissions.
           </p>
+        </div>
+      )}
+
+      {isSubmitted && canDecide && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Decision</h2>
           <ActionForm
             action={decideRequestAction}
             submitLabel="Record decision"
