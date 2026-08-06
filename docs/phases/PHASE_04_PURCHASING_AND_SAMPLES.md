@@ -75,7 +75,7 @@ permission the matching approval rule names.
 
 ## Audit Requirements
 
-21 event types in `modules/purchasing/PURCHASING_AUDIT_EVENTS.md`,
+22 event types in `modules/purchasing/PURCHASING_AUDIT_EVENTS.md`,
 including `purchase_order.cost_viewed` (counts only),
 `purchase_request.self_approval_refused` (result=failure), and
 `purchase_receipt.discrepancy` carrying the damaged/missing/extra

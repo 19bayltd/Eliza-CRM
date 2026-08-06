@@ -37,6 +37,22 @@ quotation — the Phase 03 cost wall still applies, so issuing requires
 `cost.view`. Issuing freezes the exchange rate. The request moves to
 `ordered`.
 
+**Destination (from Phase 05).** Receiving posts accepted quantities
+into a warehouse, so an order has to say where the goods land — but only
+once it becomes a commitment:
+
+| Stage | Destination |
+|---|---|
+| Draft | Optional. A company that has not created a warehouse yet must still be able to raise an order. |
+| Draft, later | Settable and changeable on the order page by anyone with `order.manage`; the change is audited as `purchase_order.destination_set`. |
+| Issue | **Required**, and re-read at that moment — a warehouse archived since drafting blocks the issue rather than receiving stock into a closed site. |
+
+The order page lists what is missing before the Issue button appears
+rather than failing after the click, and the database carries the same
+rule as `purchase_orders_issued_needs_destination`, so no path — service,
+script or console — can put a live order into the world with nowhere to
+deliver it.
+
 **Receive (Manager).** Each delivery records accepted, damaged, missing
 and extra quantities per line, in a single transaction with the
 purchase-order status update. Multiple partial receipts are normal; the

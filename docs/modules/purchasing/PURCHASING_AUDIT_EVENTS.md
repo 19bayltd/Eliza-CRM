@@ -16,6 +16,7 @@ money.
 | `purchase_request.self_approval_refused` | Requester tried to approve own request | number |
 | `approval.recorded` | Any approval decision | module, entity type, entity number, decision |
 | `purchase_order.created` | Draft order created | number, supplier, line count |
+| `purchase_order.destination_set` | Delivery warehouse chosen or changed on a draft | number, previous and new warehouse code |
 | `purchase_order.issued` | Committed to supplier | number, supplier, currency |
 | `purchase_order.cancelled` | Cancelled (reason required) | number, previous status |
 | `purchase_order.cost_viewed` | Prices exposed to a user | `{lines_with_prices: n}` — count only |

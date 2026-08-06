@@ -113,7 +113,7 @@ by `audit.log.view`, and tests.
 
 ## Phase 04 — purchasing
 
-21 event types are catalogued in
+22 event types are catalogued in
 `modules/purchasing/PURCHASING_AUDIT_EVENTS.md`. Conventions worth
 repeating here: `purchase_order.cost_viewed` records a count of priced
 lines and never a value; `purchase_receipt.discrepancy` records damaged,

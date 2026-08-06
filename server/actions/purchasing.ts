@@ -16,6 +16,7 @@ import {
   createOrder,
   issueOrder,
   recordReceipt,
+  setOrderWarehouse,
 } from "@/server/services/purchase-orders";
 import {
   addPurchaseDocument,
@@ -162,7 +163,7 @@ export async function createOrderAction(
     await createOrder({
       companyId: str(formData, "companyId"),
       supplierId: str(formData, "supplierId"),
-      warehouseId: str(formData, "warehouseId"),
+      warehouseId: opt(formData, "warehouseId"),
       requestId: opt(formData, "requestId"),
       currency: str(formData, "currency"),
       exchangeRate: str(formData, "exchangeRate"),
@@ -188,6 +189,22 @@ export async function addOrderLineAction(
       quantity: str(formData, "quantity"),
       unitPrice: str(formData, "unitPrice"),
       notes: opt(formData, "notes"),
+    });
+    revalidatePath(`${PURCHASING_PATH}/orders/${str(formData, "orderId")}`);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+export async function setOrderWarehouseAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await setOrderWarehouse({
+      orderId: str(formData, "orderId"),
+      warehouseId: str(formData, "warehouseId"),
     });
     revalidatePath(`${PURCHASING_PATH}/orders/${str(formData, "orderId")}`);
     return { ok: true, data: undefined };

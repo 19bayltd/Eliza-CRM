@@ -10,8 +10,11 @@ import {
   addOrderLineSchema,
   cancelOrderSchema,
   createOrderSchema,
+  ISSUE_BLOCK_MESSAGE,
+  issueBlockReason,
   orderIdSchema,
   recordReceiptSchema,
+  setOrderWarehouseSchema,
   sumLineTotals,
 } from "@/server/validation/purchasing";
 import type { Tables } from "@/types/database";
@@ -35,11 +38,19 @@ export type OrderLine = Tables<"purchase_order_lines"> & {
 };
 
 export type OrderDetail = {
-  order: Tables<"purchase_orders"> & { supplierCode: string; supplierName: string };
+  order: Tables<"purchase_orders"> & {
+    supplierCode: string;
+    supplierName: string;
+    warehouseCode: string | null;
+    warehouseName: string | null;
+    warehouseStatus: string | null;
+  };
   lines: OrderLine[];
   total: string | null;
   receipts: (Tables<"purchase_receipts"> & { lineCount: number })[];
   canSeeCosts: boolean;
+  /** Null when the order can be issued; otherwise why it cannot. */
+  issueBlock: ReturnType<typeof issueBlockReason>;
 };
 
 async function loadOrderOr404(orderId: string) {
@@ -53,25 +64,62 @@ async function loadOrderOr404(orderId: string) {
   return data;
 }
 
+/**
+ * Resolve a destination warehouse for an order, applying the same rules
+ * wherever a destination is set. Both callers used to carry their own
+ * copy of these checks, which is how they can drift apart.
+ *
+ * Company membership is also enforced by the composite foreign key
+ * `purchase_orders_warehouse_company_fkey`; this check exists so the
+ * caller gets a sentence rather than a constraint violation.
+ */
+async function resolveDestination(companyId: string, warehouseId: string) {
+  const admin = createAdminSupabase();
+  const { data: warehouse } = await admin
+    .from("warehouses")
+    .select("id, company_id, code, status")
+    .eq("id", warehouseId)
+    .maybeSingle();
+  if (!warehouse || warehouse.company_id !== companyId) {
+    throw invalidInput("Warehouse does not belong to this company");
+  }
+  if (warehouse.status !== "active") {
+    throw conflict("Archived warehouses cannot receive purchase orders");
+  }
+  return warehouse;
+}
+
 export async function listOrders(
   companyId: string,
-): Promise<(Tables<"purchase_orders"> & { supplierCode: string; lineCount: number })[]> {
+): Promise<
+  (Tables<"purchase_orders"> & {
+    supplierCode: string;
+    warehouseCode: string | null;
+    lineCount: number;
+  })[]
+> {
   await requirePermission({ permission: PERMISSIONS.purchasingOrderView, companyId });
   const supabase = await createServerSupabase();
   const [orders, lines] = await Promise.all([
     supabase
       .from("purchase_orders")
-      .select("*, suppliers!purchase_orders_supplier_id_fkey!inner(code)")
+      // Two foreign keys reach warehouses (plain and company-composite), so
+      // the destination embed names the one it means — an unhinted embed
+      // returns HTTP 300 rather than rows.
+      .select(
+        "*, suppliers!purchase_orders_supplier_id_fkey!inner(code), warehouses!purchase_orders_warehouse_id_fkey(code)",
+      )
       .eq("company_id", companyId)
       .order("created_at", { ascending: false }),
     supabase.from("purchase_order_lines").select("id, order_id").eq("company_id", companyId),
   ]);
   if (orders.error || lines.error) throw internal();
   return (orders.data ?? []).map((row) => {
-    const { suppliers, ...order } = row;
+    const { suppliers, warehouses, ...order } = row;
     return {
       ...order,
       supplierCode: suppliers.code,
+      warehouseCode: warehouses?.code ?? null,
       lineCount: (lines.data ?? []).filter((l) => l.order_id === order.id).length,
     };
   });
@@ -91,8 +139,15 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
   });
 
   const admin = createAdminSupabase();
-  const [supplierResult, linesResult, receiptsResult] = await Promise.all([
+  const [supplierResult, warehouseResult, linesResult, receiptsResult] = await Promise.all([
     admin.from("suppliers").select("code, name").eq("id", order.supplier_id).single(),
+    order.warehouse_id
+      ? admin
+          .from("warehouses")
+          .select("code, name, status")
+          .eq("id", order.warehouse_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
     admin
       .from("purchase_order_lines")
       .select(
@@ -106,7 +161,14 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
       .eq("order_id", order.id)
       .order("received_at", { ascending: false }),
   ]);
-  if (supplierResult.error || linesResult.error || receiptsResult.error) throw internal();
+  if (
+    supplierResult.error ||
+    warehouseResult.error ||
+    linesResult.error ||
+    receiptsResult.error
+  ) {
+    throw internal();
+  }
 
   const lineIds = (linesResult.data ?? []).map((l) => l.id);
 
@@ -172,6 +234,9 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
       ...order,
       supplierCode: supplierResult.data.code,
       supplierName: supplierResult.data.name,
+      warehouseCode: warehouseResult.data?.code ?? null,
+      warehouseName: warehouseResult.data?.name ?? null,
+      warehouseStatus: warehouseResult.data?.status ?? null,
     },
     lines,
     total,
@@ -180,6 +245,12 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
       return { ...receipt, lineCount: (rl ?? []).length };
     }),
     canSeeCosts,
+    issueBlock: issueBlockReason({
+      status: order.status,
+      lineCount: lines.length,
+      warehouseId: order.warehouse_id,
+      warehouseStatus: warehouseResult.data?.status ?? null,
+    }),
   };
 }
 
@@ -226,17 +297,12 @@ export async function createOrder(input: unknown): Promise<string> {
     }
   }
 
-  const { data: warehouse } = await admin
-    .from("warehouses")
-    .select("id, company_id, status")
-    .eq("id", parsed.data.warehouseId)
-    .maybeSingle();
-  if (!warehouse || warehouse.company_id !== parsed.data.companyId) {
-    throw invalidInput("Warehouse does not belong to this company");
-  }
-  if (warehouse.status !== "active") {
-    throw conflict("Archived warehouses cannot receive purchase orders");
-  }
+  // A destination is optional while drafting: a company that has not
+  // created a warehouse yet must still be able to start an order. It is
+  // checked here only if one was chosen, and required at issue.
+  const warehouse = parsed.data.warehouseId
+    ? await resolveDestination(parsed.data.companyId, parsed.data.warehouseId)
+    : null;
 
   const { data: number, error: numberError } = await admin.rpc("next_document_number", {
     p_company_id: parsed.data.companyId,
@@ -250,7 +316,7 @@ export async function createOrder(input: unknown): Promise<string> {
       company_id: parsed.data.companyId,
       number,
       supplier_id: supplier.id,
-      warehouse_id: warehouse.id,
+      warehouse_id: warehouse?.id ?? null,
       request_id: parsed.data.requestId ?? null,
       currency: parsed.data.currency,
       // Validated decimal string — never a float.
@@ -389,6 +455,65 @@ export async function addOrderLine(input: unknown): Promise<void> {
   });
 }
 
+/**
+ * Choose or change where a draft order will be delivered. Separate from
+ * creation because a company can raise an order before it has set up any
+ * warehouse — and separate from issuing because the choice must be made
+ * before the commitment, not during it.
+ */
+export async function setOrderWarehouse(input: unknown): Promise<void> {
+  const parsed = setOrderWarehouseSchema.safeParse(input);
+  if (!parsed.success) {
+    throw invalidInput(parsed.error.issues[0]?.message ?? "Invalid input");
+  }
+  const order = await loadOrderOr404(parsed.data.orderId);
+  const ctx = await requirePermission({
+    permission: PERMISSIONS.purchasingOrderManage,
+    companyId: order.company_id,
+  });
+  const session = await requireActiveUser();
+  if (order.status !== "draft") {
+    throw conflict("The destination can only be changed while the order is a draft");
+  }
+
+  const warehouse = await resolveDestination(order.company_id, parsed.data.warehouseId);
+  if (warehouse.id === order.warehouse_id) return;
+
+  const admin = createAdminSupabase();
+  const { data: updated, error } = await admin
+    .from("purchase_orders")
+    .update({ warehouse_id: warehouse.id, updated_by: ctx.userId })
+    .eq("id", order.id)
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
+  if (error) throw internal();
+  if (!updated) throw conflict("The order is no longer a draft");
+
+  // Where goods land is a stock fact, so the change is on the record even
+  // though the order has not been issued yet.
+  let previousCode: string | null = null;
+  if (order.warehouse_id) {
+    const { data: previous } = await admin
+      .from("warehouses")
+      .select("code")
+      .eq("id", order.warehouse_id)
+      .maybeSingle();
+    previousCode = previous?.code ?? null;
+  }
+  await writeAudit({
+    module: "purchasing",
+    action: "purchase_order.destination_set",
+    actorUserId: ctx.userId,
+    actorEmail: session.email,
+    companyId: order.company_id,
+    entityType: "purchase_order",
+    entityId: order.id,
+    previousValue: { warehouse: previousCode },
+    newValue: { number: order.number, warehouse: warehouse.code },
+  });
+}
+
 /** Issue: the order becomes a commitment and stops being editable. */
 export async function issueOrder(input: unknown): Promise<void> {
   const parsed = orderIdSchema.safeParse(input);
@@ -403,7 +528,6 @@ export async function issueOrder(input: unknown): Promise<void> {
     companyId: order.company_id,
   });
   const session = await requireActiveUser();
-  if (order.status !== "draft") throw conflict("Only draft orders can be issued");
 
   const admin = createAdminSupabase();
   const { count, error: countError } = await admin
@@ -411,7 +535,27 @@ export async function issueOrder(input: unknown): Promise<void> {
     .select("id", { count: "exact", head: true })
     .eq("order_id", order.id);
   if (countError) throw internal();
-  if (!count) throw conflict("Add at least one line before issuing");
+
+  // The destination is re-read here rather than trusted from drafting
+  // time: a warehouse can be archived between the two.
+  let warehouseStatus: string | null = null;
+  if (order.warehouse_id) {
+    const { data: warehouse, error: warehouseError } = await admin
+      .from("warehouses")
+      .select("status")
+      .eq("id", order.warehouse_id)
+      .maybeSingle();
+    if (warehouseError) throw internal();
+    warehouseStatus = warehouse?.status ?? null;
+  }
+
+  const block = issueBlockReason({
+    status: order.status,
+    lineCount: count ?? 0,
+    warehouseId: order.warehouse_id,
+    warehouseStatus,
+  });
+  if (block) throw conflict(ISSUE_BLOCK_MESSAGE[block]);
 
   const { data: updated, error } = await admin
     .from("purchase_orders")

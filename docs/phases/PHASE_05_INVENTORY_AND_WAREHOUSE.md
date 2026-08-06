@@ -54,7 +54,9 @@ costing, valuation or stock-value reporting (Phase 12/13).
 Phases 01–04 complete. **Inventory needs at least one active warehouse
 per company**; staging had none, so warehouses must be created in
 Administration → Organization before stock can be recorded. Purchase
-orders now carry a destination warehouse.
+orders now carry a destination warehouse — optional while the order is a
+draft, required before it can be issued, so a company with no warehouse
+yet can still raise orders (see Review Finding 5).
 
 ## Database Changes
 
@@ -64,8 +66,9 @@ RLS), `150004` (nullable-variant balance key), `150005` (bucket, 11
 permissions, role mappings, adjustment approval rule), `150006` (batch
 posting + the receiving hook + `purchase_orders.warehouse_id`), `150007`
 (TRF/ADJ/CNT numbering), `150008` (balance write guard + override-flag
-cleanup), `150009` (pinned search_path on both guards). Applied to
-staging 2026-08-06. Production untouched.
+cleanup), `150009` (pinned search_path on both guards), `150010` (an
+issued order must name a destination warehouse). Applied to staging
+2026-08-06. Production untouched.
 
 ## Permission Requirements
 
@@ -119,7 +122,8 @@ pinned `search_path`.
 
 ## Testing Requirements
 
-20 new unit tests (107 total, all passing); staging probes recorded
+20 new unit tests, plus 10 covering the purchase-order destination
+(117 total, all passing); staging probes recorded
 below; live manual script in `modules/inventory/INVENTORY_TEST_PLAN.md`.
 
 ## Migration Plan
@@ -131,7 +135,8 @@ owner-gated deployment plan.
 
 Drop the 10 tables in the dependency order listed in `150002`; drop the
 three guard functions and `post_stock_entries`; restore
-`record_purchase_receipt` from `20260806140005` and drop
+`record_purchase_receipt` from `20260806140005`, drop constraint
+`purchase_orders_issued_needs_destination` and drop
 `purchase_orders.warehouse_id`; delete the seeded permission/mapping/rule
 rows by key; delete the bucket if empty. App rollback via the previous
 Vercel build.
@@ -149,7 +154,7 @@ evidence, this report.
 |---|---|---|
 | Approved scope implemented | Pass | This document + code tree |
 | Excluded scope untouched | Pass | No sale/reservation posting path; types exist but are refused by validation |
-| Migrations pass against staging | Pass | 9/9 applied 2026-08-06 |
+| Migrations pass against staging | Pass | 10/10 applied 2026-08-06 |
 | Ledger is append-only | Pass | Probe: UPDATE and DELETE both raise; row unchanged; clients hold no grant |
 | Balances derive from the ledger only | Pass | Probe: direct INSERT and UPDATE refused even as database owner; posting through the ledger still works |
 | Balance ≡ sum(ledger) | Pass | Probe after mixed postings: equal |
@@ -159,11 +164,12 @@ evidence, this report.
 | Receiving posts stock atomically | Pass | Probe: 6 accepted + 2 damaged → stock 6; a receipt with a foreign line left 1 receipt and stock unchanged, ledger included |
 | Permissions enforced server-side | Pass | Every service path behind requirePermission; company re-validation on all client ids |
 | Separation of duties on adjustments | Pass | Self-approval refused server-side and audited |
+| Phase 04 still works after the Phase 05 wiring | Pass | Orders can be drafted with no warehouse; destination settable while draft; probe confirms the database refuses to move a destination-less order past draft |
 | Embed hints verified against the database | Pass | All 16 FK hints checked against `pg_constraint` — the failure mode that broke Phases 03 and 04 |
-| Unit tests pass | Pass | 107/107 (20 new) |
+| Unit tests pass | Pass | 117/117 (20 inventory + 10 purchase-order destination) |
 | Lint / typecheck / build pass | Pass | 0 errors, 0 warnings; 8 new routes present |
 | Advisors reviewed | Pass | 2 new WARNs (mutable search_path) found and fixed; remaining are the intentional deny-all INFOs and the owner-action password toggle |
-| Review executed | Pass | Self-review — 3 findings fixed; **not** independent reviewers (see Review Findings) |
+| Review executed | Pass | Self-review — 5 findings fixed; **not** independent reviewers (see Review Findings) |
 | Documentation updated | Pass | Module set + cross-cutting docs + the four audit logs + D-024 |
 | Production untouched | Pass | No operations against pbyjyamqmbotixahkknu |
 | Live manual verification (owner) | **Pending** | Script in INVENTORY_TEST_PLAN.md; requires a warehouse to exist first |
@@ -204,7 +210,8 @@ produce a variance that reflects concurrent activity rather than error.
 ```
 lint:        0 errors, 0 warnings
 typecheck:   clean (strict)
-unit tests:  107 passed / 107 (9 files; 20 new inventory tests)
+unit tests:  117 passed / 117 (9 files; 20 new inventory tests,
+             10 purchase-order destination tests)
 build:       production build OK — /inventory, /inventory/ledger,
              /inventory/transfers(+[id]), /inventory/adjustments(+[id]),
              /inventory/counts(+[id]) present
@@ -258,6 +265,53 @@ to run an independent pass before production now covers Phases 04 and 05
    could actually exploit it, but a permission flag should not survive the
    error that interrupted it; it is now cleared in an exception handler.
 4. **Advisors: mutable `search_path`** on both guard functions — fixed.
+5. **This phase broke Phase 04.** Wiring receiving into the ledger meant a
+   purchase order needed a destination warehouse, and that requirement was
+   put at order *creation*. Staging has no warehouses, so every company's
+   New-purchase-order form refused to create anything: a completed,
+   owner-signed-off phase stopped working. Nothing in the Phase 05 test
+   plan would have caught it, because the plan only exercised Phase 05.
+
+   The first fix was a patch — make the field optional, add a form to set
+   it later — and it worked, but it left the new rule living only in
+   TypeScript. That is the same shape as finding 2 above: a rule the
+   documentation asserts and the database does not enforce. It was
+   reverted and redone:
+
+   - **`purchase_orders_issued_needs_destination`**, a check constraint:
+     `warehouse_id is not null or status in ('draft','cancelled')`.
+     Declared NOT VALID because one Phase 04 order (status `received`)
+     predates the column, and back-filling it would invent a fact about a
+     delivery nobody recorded. Probe confirms the database refuses to move
+     a destination-less order past draft.
+   - **`issueBlockReason()`**, a pure function listing every reason an
+     order cannot be issued, so the order page says what is missing
+     *before* the click instead of only after — the same shape as
+     `decisionBlockReason()` for requests.
+   - **`resolveDestination()`**, one shared helper, because creation and
+     later assignment previously carried separate copies of the same
+     checks.
+   - **The destination is re-read at issue.** The patch trusted the
+     warehouse chosen at drafting time; a warehouse archived in between
+     would have been issued into. `destination_inactive` now blocks it.
+
+   Found while redoing it, and fixed in the same pass: the orders page
+   called `listWarehouses` inside an unguarded `Promise.all`, so anyone
+   who could raise a purchase order but lacked `inventory.view` would
+   have got a 500 on `/purchasing/orders` rather than a page. **Not
+   reachable under the current role defaults** — every role holding
+   `purchasing.order.manage` also holds `inventory.view`, confirmed by
+   query — so this is a latent fault, not a live one. It becomes live the
+   moment anyone builds a custom role. Both pages now catch the forbidden
+   read, and the detail page distinguishes "you cannot see the
+   warehouses" from "there are none", because those need different people
+   to fix them.
+
+   Lesson: adding a dependency to an earlier phase has to be tested
+   against that phase's existing flows, not only against the new one —
+   and a fix that only lives in the service layer is half a fix in a
+   codebase whose whole premise is that the database enforces its own
+   rules.
 
 Accepted risks (recorded, not fixed):
 
@@ -272,8 +326,8 @@ Accepted risks (recorded, not fixed):
 ## Final Phase Verdict
 
 **Implemented — pending live verification.** Every code-, schema-,
-security- and test-level criterion passes with evidence: 107 unit tests,
-9 migrations, and staging probes covering immutability, derivation,
+security- and test-level criterion passes with evidence: 117 unit tests,
+10 migrations, and staging probes covering immutability, derivation,
 negative stock, the override, sign constraints, atomic receipt posting
 and reconciliation.
 

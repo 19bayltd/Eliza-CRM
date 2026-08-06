@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { createOrderAction } from "@/server/actions/purchasing";
+import { ServiceError } from "@/server/errors";
 import { hasPermission, PERMISSIONS } from "@/server/permissions";
 import { listCompanies } from "@/server/services/organization";
 import { listOrders } from "@/server/services/purchase-orders";
@@ -38,13 +39,21 @@ export default async function PurchaseOrdersPage() {
     ]);
 
     const canCreate = canManage && canCosts;
-    const [suppliers, requests, warehouses] = canCreate
-      ? await Promise.all([
-          listSuppliers(company.id),
-          listRequests(company.id),
-          listWarehouses(company.id),
-        ])
-      : [[], [], []];
+    const [suppliers, requests] = canCreate
+      ? await Promise.all([listSuppliers(company.id), listRequests(company.id)])
+      : [[], []];
+
+    // The warehouse list needs inventory.view, which someone allowed to
+    // raise purchase orders need not hold. Letting that throw would turn
+    // the whole orders page into a 500 for them.
+    let warehouses: Awaited<ReturnType<typeof listWarehouses>> = [];
+    if (canCreate) {
+      try {
+        warehouses = await listWarehouses(company.id);
+      } catch (err) {
+        if (!(err instanceof ServiceError && err.code === "forbidden")) throw err;
+      }
+    }
 
     sections.push({
       company,
@@ -78,6 +87,7 @@ export default async function PurchaseOrdersPage() {
                     <th scope="col">Number</th>
                     <th scope="col">Supplier</th>
                     <th scope="col">Lines</th>
+                    <th scope="col">Destination</th>
                     <th scope="col">Currency</th>
                     <th scope="col">Expected</th>
                     <th scope="col">Status</th>
@@ -91,6 +101,11 @@ export default async function PurchaseOrdersPage() {
                       </td>
                       <td>{o.supplierCode}</td>
                       <td>{o.lineCount}</td>
+                      <td>
+                        {o.warehouseCode ?? (
+                          <span className="empty">not set</span>
+                        )}
+                      </td>
                       <td>{o.currency}</td>
                       <td>{o.expected_date ?? "—"}</td>
                       <td>
@@ -134,15 +149,13 @@ export default async function PurchaseOrdersPage() {
                   Deliver to warehouse
                   {warehouses.length === 0 ? (
                     <p className="empty">
-                      This company has no active warehouse. Create one in
-                      Administration → Organization first — receiving posts
-                      stock, so an order must say where the goods land.
+                      This company has no active warehouse yet, so leave this
+                      for now — you can set it on the order before issuing.
+                      Warehouses are created in Administration → Organization.
                     </p>
                   ) : (
-                    <select name="warehouseId" required defaultValue="">
-                      <option value="" disabled>
-                        Choose a warehouse
-                      </option>
+                    <select name="warehouseId" defaultValue="">
+                      <option value="">— set later —</option>
                       {warehouses.map((w) => (
                         <option key={w.id} value={w.id}>
                           {w.code} — {w.name}
@@ -150,6 +163,10 @@ export default async function PurchaseOrdersPage() {
                       ))}
                     </select>
                   )}
+                  <span className="empty">
+                    Required before the order can be issued — receiving posts
+                    stock into it.
+                  </span>
                 </label>
                 <label>
                   From approved request (optional)

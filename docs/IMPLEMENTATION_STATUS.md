@@ -103,21 +103,29 @@ Phase 04 (2026-08-06):
 
 Phase 05 (2026-08-06):
 
-- Migrations `20260806150001`–`150009`: warehouses become a
+- Migrations `20260806150001`–`150010`: warehouses become a
   company-integrity parent; 10 inventory tables; ledger immutability and
   derived balances; nullable-variant balance key; reference data; batch
   posting plus the Phase 04 receipt hook and `purchase_orders.warehouse_id`;
-  TRF/ADJ/CNT numbering; the balance write guard; pinned search_paths
+  TRF/ADJ/CNT numbering; the balance write guard; pinned search_paths;
+  the constraint that an issued order must name a destination warehouse
 - Services: balances and ledger history, manual movements, warehouse
   locations, two-step transfers, approval-gated adjustments reusing the
   Phase 04 engine, stock counts with snapshot-and-variance
 - UI: /inventory, /inventory/ledger, /inventory/transfers(+[id]),
   /inventory/adjustments(+[id]), /inventory/counts(+[id]) + nav entry
-- 20 inventory unit tests (107 total green); staging probes covering
+- 20 inventory unit tests plus 10 pinning the purchase-order
+  destination rule (117 total green); staging probes covering
   immutability, derivation, the negative floor, the override, sign
   constraints, atomic receipt posting and reconciliation
-- 4 self-review/advisor findings fixed; all 16 embed hints verified
-  against `pg_constraint`
+- 5 self-review/advisor findings fixed; all 16 inventory embed hints plus
+  the new order-destination embed verified against `pg_constraint`
+  (purchase_orders reaches warehouses by two foreign keys, so the unhinted
+  form would have returned HTTP 300). Finding 5 is the one that reached
+  the owner:
+  this phase broke Phase 04 order creation by requiring a destination
+  warehouse at draft time when staging has no warehouses. Reverted and
+  redone with the rule at issue time and enforced by a check constraint
 - Module documentation set + cross-cutting docs + the four audit logs +
   D-024, R-017/R-018
 
@@ -173,7 +181,7 @@ implementation deliberately does not seed. Note this phase again had a
 
 ## Test Status
 
-Unit 107/107 pass (9 files; 20 Phase 05 inventory tests, 21 Phase 04
+Unit 117/117 pass (9 files; 20 Phase 05 inventory tests, 31 Phase 04
 purchasing tests, plus a guard that fails the build on any PostgREST
 embed missing its foreign key). Integration
 suite env-gated. E2E: 5/5 green against the live deployment (Phase 01
@@ -220,8 +228,8 @@ recommended before production.
 
 ## Migration Status
 
-Staging: 27/27 applied (7 Phase 01 + 2 Phase 02 + 2+2 Phase 03 + 3+2
-Phase 04 + 9 Phase 05) + seed.
+Staging: 28/28 applied (7 Phase 01 + 2 Phase 02 + 2+2 Phase 03 + 3+2
+Phase 04 + 10 Phase 05) + seed.
 Production: none (by design; gated plan prepared).
 
 ## Deployment Status

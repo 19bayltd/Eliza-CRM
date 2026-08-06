@@ -127,6 +127,46 @@ export function selectApprovalRule<
   return best;
 }
 
+/**
+ * Why an order cannot be issued, or null when it can. Kept pure and
+ * separate from the service so the order page can say what is missing
+ * before anyone clicks, instead of only after — the same shape as
+ * `decisionBlockReason` for purchase requests.
+ *
+ * `destination_inactive` is not redundant with `no_destination`: a
+ * warehouse chosen while drafting can be archived before the order is
+ * issued, and issuing into an archived warehouse would post stock
+ * somewhere the business has closed.
+ */
+export type IssueBlock =
+  | "not_draft"
+  | "no_lines"
+  | "no_destination"
+  | "destination_inactive";
+
+export function issueBlockReason(order: {
+  status: string;
+  lineCount: number;
+  warehouseId: string | null;
+  warehouseStatus: string | null;
+}): IssueBlock | null {
+  if (order.status !== "draft") return "not_draft";
+  if (order.lineCount < 1) return "no_lines";
+  if (!order.warehouseId) return "no_destination";
+  if (order.warehouseStatus !== "active") return "destination_inactive";
+  return null;
+}
+
+/** Owner-facing wording for each block, used by the UI and the service. */
+export const ISSUE_BLOCK_MESSAGE: Record<IssueBlock, string> = {
+  not_draft: "Only draft orders can be issued",
+  no_lines: "Add at least one line before issuing",
+  no_destination:
+    "Set a destination warehouse before issuing — receiving posts stock into it",
+  destination_inactive:
+    "The destination warehouse has been archived — choose another before issuing",
+};
+
 /* ------------------------------------------------------------------ */
 /* Schemas                                                             */
 /* ------------------------------------------------------------------ */
@@ -171,8 +211,10 @@ export const createOrderSchema = z.object({
   companyId: uuidSchema,
   supplierId: uuidSchema,
   // Phase 05: receiving posts stock, so an order must say where the goods
-  // will land before anyone can receive against it.
-  warehouseId: uuidSchema,
+  // land — but only once it is a commitment. A draft may be started before
+  // the company has created any warehouse; `issueBlockReason` and the
+  // `purchase_orders_issued_needs_destination` constraint hold the line.
+  warehouseId: uuidSchema.optional().or(z.literal("").transform(() => undefined)),
   requestId: uuidSchema.optional().or(z.literal("").transform(() => undefined)),
   currency: currencySchema,
   exchangeRate: exchangeRateSchema,
@@ -190,6 +232,11 @@ export const addOrderLineSchema = z.object({
 });
 
 export const orderIdSchema = z.object({ orderId: uuidSchema });
+
+export const setOrderWarehouseSchema = z.object({
+  orderId: uuidSchema,
+  warehouseId: uuidSchema,
+});
 
 export const cancelOrderSchema = z.object({
   orderId: uuidSchema,

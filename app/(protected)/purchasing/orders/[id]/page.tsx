@@ -7,14 +7,17 @@ import {
   issueOrderAction,
   recordReceiptAction,
   removePurchaseDocumentAction,
+  setOrderWarehouseAction,
   uploadPurchaseDocumentAction,
 } from "@/server/actions/purchasing";
 import { ServiceError } from "@/server/errors";
 import { hasPermission, PERMISSIONS } from "@/server/permissions";
+import { listWarehouses } from "@/server/services/inventory";
 import { listCompanies } from "@/server/services/organization";
 import { listProducts } from "@/server/services/products";
 import { getOrderDetail } from "@/server/services/purchase-orders";
 import { listPurchaseDocuments } from "@/server/services/purchase-documents";
+import { ISSUE_BLOCK_MESSAGE } from "@/server/validation/purchasing";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +38,7 @@ export default async function PurchaseOrderPage(props: {
     if (err instanceof ServiceError && err.code === "not_found") notFound();
     throw err;
   }
-  const { order, lines, total, receipts, canSeeCosts } = detail;
+  const { order, lines, total, receipts, canSeeCosts, issueBlock } = detail;
 
   const [companies, canManage, canReceive, canDocs, canDocManage] = await Promise.all([
     listCompanies(),
@@ -74,6 +77,24 @@ export default async function PurchaseOrderPage(props: {
   const isDraft = order.status === "draft";
   const isReceivable = ["issued", "partially_received"].includes(order.status);
 
+  // Warehouses are only offered while the order can still change. The list
+  // needs inventory.view, which an order manager may not hold — and
+  // "you cannot see the warehouses" must not be reported as "there are
+  // none", because the two need different people to fix them.
+  let warehouses: Awaited<ReturnType<typeof listWarehouses>> = [];
+  let warehousesHidden = false;
+  if (canManage && isDraft) {
+    try {
+      warehouses = await listWarehouses(order.company_id);
+    } catch (err) {
+      if (err instanceof ServiceError && err.code === "forbidden") {
+        warehousesHidden = true;
+      } else {
+        throw err;
+      }
+    }
+  }
+
   return (
     <div>
       <p>
@@ -88,6 +109,19 @@ export default async function PurchaseOrderPage(props: {
         <p>
           Supplier: {order.supplierCode} · Currency: {order.currency} · Expected:{" "}
           {order.expected_date ?? "—"}
+        </p>
+        <p>
+          Deliver to:{" "}
+          {order.warehouseCode ? (
+            <>
+              {order.warehouseCode} — {order.warehouseName}
+              {order.warehouseStatus !== "active" && (
+                <span className="badge status-archived"> archived</span>
+              )}
+            </>
+          ) : (
+            <span className="empty">not set</span>
+          )}
         </p>
         {order.terms && <p>Terms: {order.terms}</p>}
         {canSeeCosts ? (
@@ -193,15 +227,67 @@ export default async function PurchaseOrderPage(props: {
         <div className="card">
           <h2 style={{ marginTop: 0 }}>Order actions</h2>
           {isDraft && (
-            <ActionForm
-              action={issueOrderAction}
-              submitLabel="Issue order"
-              successMessage="Order issued."
-              confirmMessage="Issue this order? It becomes a commitment and lines can no longer be edited."
-              className="row"
-            >
-              <input type="hidden" name="orderId" value={order.id} />
-            </ActionForm>
+            <>
+              <details style={{ marginBottom: "0.75rem" }} open={!order.warehouseCode}>
+                <summary>
+                  {order.warehouseCode ? "Change destination" : "Set destination"}
+                </summary>
+                {warehousesHidden ? (
+                  <p className="empty">
+                    You do not have inventory access in this company, so the
+                    warehouse list cannot be shown. Ask someone with inventory
+                    access to set the destination before this order is issued.
+                  </p>
+                ) : warehouses.length === 0 ? (
+                  <p className="empty">
+                    No active warehouse exists in this company yet. Create one in
+                    Administration → Organization — receiving posts stock into
+                    it, so the order cannot be issued until it has one.
+                  </p>
+                ) : (
+                  <ActionForm
+                    action={setOrderWarehouseAction}
+                    submitLabel="Save destination"
+                    successMessage="Destination saved."
+                    className="row"
+                  >
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <label>
+                      Deliver to warehouse
+                      <select
+                        name="warehouseId"
+                        required
+                        defaultValue={order.warehouse_id ?? ""}
+                      >
+                        <option value="" disabled>
+                          Choose a warehouse
+                        </option>
+                        {warehouses.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.code} — {w.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </ActionForm>
+                )}
+              </details>
+              {issueBlock ? (
+                <p className="empty">
+                  Cannot issue yet: {ISSUE_BLOCK_MESSAGE[issueBlock]}.
+                </p>
+              ) : (
+                <ActionForm
+                  action={issueOrderAction}
+                  submitLabel="Issue order"
+                  successMessage="Order issued."
+                  confirmMessage="Issue this order? It becomes a commitment and lines can no longer be edited."
+                  className="row"
+                >
+                  <input type="hidden" name="orderId" value={order.id} />
+                </ActionForm>
+              )}
+            </>
           )}
           <details style={{ marginTop: "0.75rem" }}>
             <summary>Cancel order</summary>
