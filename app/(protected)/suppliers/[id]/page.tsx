@@ -45,7 +45,16 @@ export default async function SupplierDetailPage(props: {
 
   const quotations = canQuotationView ? await listSupplierQuotations(supplier.id) : [];
   const documents = canDocsView ? await listSupplierDocuments(supplier.id) : [];
-  const products = canQuotationManage ? await listProducts(supplier.company_id) : [];
+  // A role holding quotation.manage without products.view degrades to an
+  // empty product list rather than crashing the page.
+  let products: Awaited<ReturnType<typeof listProducts>> = [];
+  if (canQuotationManage) {
+    try {
+      products = await listProducts(supplier.company_id);
+    } catch (err) {
+      if (!(err instanceof ServiceError && err.code === "forbidden")) throw err;
+    }
+  }
 
   return (
     <div>

@@ -9,7 +9,9 @@ import { conflict, internal, invalidInput, notFound } from "@/server/errors";
 import {
   archiveSupplierEntitySchema,
   createQuotationSchema,
+  multiplyDecimalStrings,
 } from "@/server/validation/suppliers";
+import { uuidSchema } from "@/server/validation/organization";
 import type { Tables } from "@/types/database";
 
 /**
@@ -92,8 +94,12 @@ async function loadQuotations(params: {
             unitPrice: String(cost.unit_price),
             currency: cost.currency,
             exchangeRate: String(cost.exchange_rate),
-            // Display aid; authoritative math stays numeric in the DB.
-            normalized: (cost.unit_price * cost.exchange_rate).toFixed(2),
+            // Exact decimal math — float rounding misranked suppliers on
+            // the comparison surface (review finding: 2.675 → "2.67").
+            normalized: multiplyDecimalStrings(
+              String(cost.unit_price),
+              String(cost.exchange_rate),
+            ),
             baseCurrency: companies.base_currency,
           }
         : null,
@@ -105,6 +111,7 @@ async function loadQuotations(params: {
 export async function listSupplierQuotations(
   supplierId: string,
 ): Promise<QuotationEntry[]> {
+  if (!uuidSchema.safeParse(supplierId).success) throw invalidInput("Invalid identifier");
   const admin = createAdminSupabase();
   const { data: supplier } = await admin
     .from("suppliers")
@@ -125,6 +132,7 @@ export async function compareQuotations(productId: string): Promise<{
   productSku: string;
   entries: QuotationEntry[];
 }> {
+  if (!uuidSchema.safeParse(productId).success) throw invalidInput("Invalid identifier");
   const admin = createAdminSupabase();
   const { data: product } = await admin
     .from("products")
@@ -178,6 +186,20 @@ export async function createQuotation(
     .eq("id", parsed.data.supplierId)
     .maybeSingle();
   if (!supplier) throw notFound("Supplier not found");
+
+  // Authorize FIRST (prices are part of a quotation: both permissions),
+  // so status/relationship responses below reach authorized users only —
+  // review finding: the previous order was a metadata oracle.
+  await requirePermission({
+    permission: PERMISSIONS.suppliersQuotationManage,
+    companyId: supplier.company_id,
+  });
+  const ctx = await requirePermission({
+    permission: PERMISSIONS.suppliersQuotationCostView,
+    companyId: supplier.company_id,
+  });
+  const session = await requireActiveUser();
+
   if (supplier.status === "archived") {
     throw conflict("Archived suppliers cannot receive new quotations");
   }
@@ -203,17 +225,6 @@ export async function createQuotation(
       throw invalidInput("Variant does not belong to the selected product");
     }
   }
-
-  // Prices are part of a quotation: both permissions are required.
-  await requirePermission({
-    permission: PERMISSIONS.suppliersQuotationManage,
-    companyId: supplier.company_id,
-  });
-  const ctx = await requirePermission({
-    permission: PERMISSIONS.suppliersQuotationCostView,
-    companyId: supplier.company_id,
-  });
-  const session = await requireActiveUser();
 
   const { data: quotation, error } = await admin
     .from("supplier_quotations")
@@ -244,9 +255,43 @@ export async function createQuotation(
     updated_by: ctx.userId,
   });
   if (costError) {
-    // Keep quotation and cost consistent.
-    await admin.from("supplier_quotations").delete().eq("id", quotation.id);
+    // Keep quotation and cost consistent; a failed compensation must not
+    // pass silently (review finding: orphan price-less quotations).
+    const { error: cleanupError } = await admin
+      .from("supplier_quotations")
+      .delete()
+      .eq("id", quotation.id);
+    if (cleanupError) {
+      console.error(`quotation orphan cleanup failed: ${quotation.id}`);
+      await writeAudit(
+        {
+          module: "suppliers",
+          action: "quotation.orphan_cleanup_failed",
+          actorUserId: ctx.userId,
+          actorEmail: session.email,
+          companyId: supplier.company_id,
+          entityType: "quotation",
+          entityId: quotation.id,
+          failureReason: "cost_insert_and_cleanup_failed",
+          result: "failure",
+        },
+        { critical: false },
+      );
+    }
     throw internal("Quotation price could not be recorded");
+  }
+
+  // Close the archive race: if the supplier was archived between our
+  // status check and the insert, undo and refuse (review finding).
+  const { data: supplierNow } = await admin
+    .from("suppliers")
+    .select("status")
+    .eq("id", supplier.id)
+    .maybeSingle();
+  if (supplierNow?.status !== "active") {
+    await admin.from("supplier_quotation_costs").delete().eq("quotation_id", quotation.id);
+    await admin.from("supplier_quotations").delete().eq("id", quotation.id);
+    throw conflict("Supplier was archived while the quotation was being created");
   }
 
   // Confidential price values never enter the audit payload.

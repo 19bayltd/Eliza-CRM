@@ -139,13 +139,24 @@ export async function removeSupplierDocument(documentId: string): Promise<void> 
   });
   const session = await requireActiveUser();
 
-  await deletePrivateFile(doc.file_id);
-
+  // Registry first, object second: the old order could leave a permanently
+  // irremovable active row when the object delete succeeded but the row
+  // update failed (review finding). If the object delete fails, the row
+  // is restored so the operation stays retryable.
   const { error } = await admin
     .from("supplier_documents")
     .update({ status: "deleted" })
     .eq("id", doc.id);
   if (error) throw internal();
+  try {
+    await deletePrivateFile(doc.file_id);
+  } catch (err) {
+    await admin
+      .from("supplier_documents")
+      .update({ status: "active" })
+      .eq("id", doc.id);
+    throw err;
+  }
 
   await writeAudit({
     module: "suppliers",

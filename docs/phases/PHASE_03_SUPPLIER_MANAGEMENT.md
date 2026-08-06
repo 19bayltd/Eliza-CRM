@@ -131,6 +131,7 @@ verification evidence, this report.
 | Unit tests pass | Pass | 57/57 (10 new) |
 | Lint / typecheck / build pass | Pass | 0 errors; 3 new routes present |
 | Advisors reviewed | Pass | No new findings after 5-table DDL |
+| Adversarial review executed | Pass | 3 independent reviewers (authorization/price-leakage, database/RLS, correctness); 10 findings verified and fixed, 2 recorded as accepted risks — see Review Findings |
 | Documentation updated | Pass | Module set + cross-cutting docs + D-019 |
 | Production untouched | Pass | No operations against pbyjyamqmbotixahkknu |
 | Live manual verification (owner) | **Pending** | Script in SUPPLIERS_TEST_PLAN.md |
@@ -179,9 +180,70 @@ RLS probe (fixtures inserted + probed + rolled back; residue 0):
 production:  untouched
 ```
 
+## Review Findings (3 independent reviewers, 2026-08-06)
+
+Fixed before live verification (all deployed):
+
+1. **Company-integrity gap (database reviewer)** — child rows carried
+   their own `company_id` unconstrained against their parent's company,
+   so a hypothetical server bug mis-stamping a company could re-scope
+   confidential rows across tenants with RLS none the wiser. Fixed for
+   ALL phases: migration `20260806130001` adds `unique (id, company_id)`
+   parent keys and composite FKs across the organization, product, and
+   supplier domains (plus variant→product pinning). Negative probe
+   confirms a mis-stamped cost row is now rejected by FK.
+2. **Audited-read bypass (authorization reviewer)** — cost-permission
+   holders could SELECT `supplier_quotation_costs` (and
+   `product_intelligence`) directly via the browser client, reading
+   confidential values with zero audit events. Fixed: migration
+   `20260806130002` makes both tables RLS deny-all (server-only, like
+   audit_log); every read now flows through the audited services.
+   Probe: administrator client-side sees 0 rows in both tables.
+3. **Permission-check ordering in createQuotation** — relationship and
+   status errors were emitted before requirePermission (metadata oracle
+   for holders of leaked UUIDs). Authorization now runs first.
+4. **Quotation-count disclosure** — the archive-refusal message exposed
+   exact active-quotation counts to users who may lack quotation.view;
+   count removed from the message.
+5. **Float misranking on the comparison surface (correctness reviewer)**
+   — `(price * rate).toFixed(2)` produced e.g. 2.675 → "2.67";
+   normalized prices are now computed with exact BigInt decimal math
+   (half-up), and tiny positive prices render at 4 dp instead of "0.00".
+6. **Unchecked compensating delete** — a failed cost insert whose
+   cleanup also failed left a silent orphan quotation; cleanup failures
+   are now logged and audited (`quotation.orphan_cleanup_failed`).
+7. **Archive/creation race** — a supplier could be archived between the
+   status check and the quotation insert; createQuotation now re-checks
+   after insert and undoes itself if the supplier was archived.
+8. **Impossible dates + integer overflow** — `2026-02-31` and
+   10-digit MOQs passed validation and surfaced as generic 500s; the
+   schema now enforces real calendar dates, MOQ ≤ 1e8, lead ≤ 3650 days.
+9. **Compare-page crashes** — malformed or foreign product ids crashed
+   the page; they now render a friendly notice, and supplier pages
+   degrade gracefully for roles lacking `products.view`.
+10. **Irrecoverable document rows** — removal deleted the object before
+    the registry row, which could strand an active row forever; the
+    order is reversed with restore-on-failure.
+
+Accepted risks (recorded, not fixed):
+
+- **Existence oracle via fetch-before-authorize** (systemic, Phases
+  01–03): services can reveal that a UUID exists before authorization
+  denies. UUIDs are unguessable 122-bit values, so exploitation requires
+  already-leaked identifiers; full re-ordering across every service is
+  deferred to a hardening pass. The richest instance (createQuotation)
+  is fixed.
+- **Duplicate quotations on double-submit**: no uniqueness over
+  (supplier, product, variant) — genuinely repeated quotes are
+  legitimate business data; duplicates are visible and archivable.
+- **Signed-URL issuance is audited as `file.downloaded` on render**,
+  i.e. the trail records access grants, not confirmed downloads —
+  consistent across Phases 01–03 and noted in the audit catalog.
+
 ## Final Phase Verdict
 
 **Implemented — pending live verification.** All code-, schema-,
-security-, and test-level criteria pass with evidence. Remaining:
-owner-side live manual script (SUPPLIERS_TEST_PLAN.md) against the
-deployed app, then the completion declaration.
+security-, review-, and test-level criteria pass with evidence
+(63 unit tests after review fixes). Remaining: owner-side live manual
+script (SUPPLIERS_TEST_PLAN.md) against the deployed app, then the
+completion declaration.

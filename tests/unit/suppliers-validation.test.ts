@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createQuotationSchema,
   exchangeRateSchema,
+  multiplyDecimalStrings,
   supplierCodeSchema,
   unitPriceSchema,
 } from "@/server/validation/suppliers";
@@ -83,5 +84,38 @@ describe("createQuotationSchema", () => {
     expect(
       createQuotationSchema.safeParse({ ...base, currency: "US" }).success,
     ).toBe(false);
+  });
+
+  it("rejects impossible calendar dates (review finding)", () => {
+    expect(
+      createQuotationSchema.safeParse({ ...base, validUntil: "2026-02-31" }).success,
+    ).toBe(false);
+    expect(
+      createQuotationSchema.safeParse({ ...base, validUntil: "2026-99-99" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects integer-overflow MOQ and absurd lead times (review finding)", () => {
+    expect(createQuotationSchema.safeParse({ ...base, moq: "9999999999" }).success).toBe(false);
+    expect(
+      createQuotationSchema.safeParse({ ...base, leadTimeDays: "99999" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("multiplyDecimalStrings (review finding: float misranking)", () => {
+  it("rounds half-up where IEEE floats round down", () => {
+    // (2.675 * 1).toFixed(2) === "2.67" in JS; decimal math must give 2.68.
+    expect(multiplyDecimalStrings("2.675", "1")).toBe("2.68");
+  });
+  it("computes the canonical example exactly", () => {
+    expect(multiplyDecimalStrings("1.85", "121.5")).toBe("224.78");
+  });
+  it("keeps tiny positive prices visible instead of showing 0.00", () => {
+    expect(multiplyDecimalStrings("0.0001", "1")).toBe("0.0001");
+  });
+  it("handles integer inputs and large rates", () => {
+    expect(multiplyDecimalStrings("210", "1")).toBe("210.00");
+    expect(multiplyDecimalStrings("1.8500", "121.500000")).toBe("224.78");
   });
 });

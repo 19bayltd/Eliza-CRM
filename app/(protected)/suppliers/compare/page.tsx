@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ServiceError } from "@/server/errors";
 import { hasPermission, PERMISSIONS } from "@/server/permissions";
 import { listCompanies } from "@/server/services/organization";
 import { listProducts } from "@/server/services/products";
@@ -25,10 +26,15 @@ export default async function CompareQuotationsPage(props: {
       companyId: company.id,
     });
     if (!canCosts) continue;
-    productsByCompany.push({
-      company,
-      products: await listProducts(company.id),
-    });
+    // A role holding cost.view without products.view degrades to an
+    // empty product list rather than crashing the page.
+    let products: Awaited<ReturnType<typeof listProducts>> = [];
+    try {
+      products = await listProducts(company.id);
+    } catch (err) {
+      if (!(err instanceof ServiceError && err.code === "forbidden")) throw err;
+    }
+    productsByCompany.push({ company, products });
   }
 
   if (productsByCompany.length === 0) {
@@ -39,7 +45,23 @@ export default async function CompareQuotationsPage(props: {
     );
   }
 
-  const comparison = productId ? await compareQuotations(productId) : null;
+  // Bad or foreign product ids render a notice, never a server crash.
+  let comparison: Awaited<ReturnType<typeof compareQuotations>> | null = null;
+  let comparisonError: string | null = null;
+  if (productId) {
+    try {
+      comparison = await compareQuotations(productId);
+    } catch (err) {
+      if (err instanceof ServiceError) {
+        comparisonError =
+          err.code === "forbidden"
+            ? "You do not have quotation access in that product's company."
+            : "That product could not be found.";
+      } else {
+        throw err;
+      }
+    }
+  }
 
   return (
     <div>
@@ -67,6 +89,8 @@ export default async function CompareQuotationsPage(props: {
           </div>
         ))}
       </div>
+
+      {comparisonError && <p className="msg-error">{comparisonError}</p>}
 
       {comparison && (
         <div className="card">

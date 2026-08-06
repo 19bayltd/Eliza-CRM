@@ -39,7 +39,7 @@ export async function listSuppliers(
       .eq("company_id", companyId)
       .eq("status", "active"),
   ]);
-  if (suppliers.error) throw internal();
+  if (suppliers.error || contacts.error || quotations.error) throw internal();
   return suppliers.data.map((s) => ({
     ...s,
     contactCount: (contacts.data ?? []).filter((c) => c.supplier_id === s.id).length,
@@ -210,7 +210,9 @@ export async function archiveSupplier(
     .eq("supplier_id", before.id)
     .eq("status", "active");
   if (count) {
-    throw conflict(`Cannot archive: ${count} active quotation(s) reference this supplier`);
+    // No count in the message: quotation existence detail is gated by a
+    // permission the archiving user may not hold (review finding).
+    throw conflict("Cannot archive: active quotations reference this supplier");
   }
 
   const { error } = await admin
