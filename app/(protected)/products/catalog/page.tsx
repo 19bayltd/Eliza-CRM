@@ -46,6 +46,12 @@ export default async function CatalogPage() {
 
           <section className="subsection">
           <h3>Units</h3>
+          <p className="muted">
+            How a product is counted or sold. Code is a short uppercase
+            shorthand, Name is its readable form — e.g. PCS / Pieces, DZN /
+            Dozen, CTN / Carton. Quantities are entered on orders and stock,
+            not here.
+          </p>
           {catalog.units.length === 0 ? (
             <p className="empty">None yet.</p>
           ) : (
@@ -99,6 +105,10 @@ export default async function CatalogPage() {
 
           <section className="subsection">
           <h3>Categories</h3>
+          <p className="muted">
+            How products are grouped — e.g. MENS-TSH / T-Shirts. Choose a
+            Parent to nest one category under another.
+          </p>
           {catalog.categories.length === 0 ? (
             <p className="empty">None yet.</p>
           ) : (
@@ -165,6 +175,11 @@ export default async function CatalogPage() {
 
           <section className="subsection">
           <h3>Attributes</h3>
+          <p className="muted">
+            Characteristics that distinguish variants of a product — e.g.
+            SIZE / Size with values S, M, L, XL. Add the attribute first,
+            then its values.
+          </p>
           {catalog.attributes.length === 0 ? (
             <p className="empty">None yet.</p>
           ) : (
