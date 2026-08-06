@@ -7,7 +7,6 @@ import {
   issueOrderAction,
   recordReceiptAction,
   removePurchaseDocumentAction,
-  setOrderWarehouseAction,
   uploadPurchaseDocumentAction,
 } from "@/server/actions/purchasing";
 import { ServiceError } from "@/server/errors";
@@ -16,7 +15,6 @@ import { listCompanies } from "@/server/services/organization";
 import { listProducts } from "@/server/services/products";
 import { getOrderDetail } from "@/server/services/purchase-orders";
 import { listPurchaseDocuments } from "@/server/services/purchase-documents";
-import { listWarehouses } from "@/server/services/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -62,12 +60,6 @@ export default async function PurchaseOrderPage(props: {
   const documents = canDocs
     ? await listPurchaseDocuments("purchase_order", order.id)
     : [];
-  // Only needed while the order can still change destination.
-  const warehouses =
-    canManage && order.status === "draft"
-      ? await listWarehouses(order.company_id)
-      : [];
-  const destination = warehouses.find((w) => w.id === order.warehouse_id);
   const baseCurrency =
     companies.find((c) => c.id === order.company_id)?.base_currency ?? "";
 
@@ -98,51 +90,6 @@ export default async function PurchaseOrderPage(props: {
           {order.expected_date ?? "—"}
         </p>
         {order.terms && <p>Terms: {order.terms}</p>}
-        <p>
-          Destination:{" "}
-          {order.warehouse_id ? (
-            <strong>{destination ? `${destination.code} — ${destination.name}` : "set"}</strong>
-          ) : (
-            <span className="msg-error">
-              not set — receiving posts stock, so this must be chosen before the
-              order can be issued
-            </span>
-          )}
-        </p>
-        {canManage && isDraft && warehouses.length > 0 && (
-          <details>
-            <summary>
-              {order.warehouse_id ? "Change destination" : "Set destination"}
-            </summary>
-            <ActionForm
-              action={setOrderWarehouseAction}
-              submitLabel="Save destination"
-              successMessage="Destination saved."
-              className="row"
-            >
-              <input type="hidden" name="orderId" value={order.id} />
-              <label>
-                Warehouse
-                <select name="warehouseId" required defaultValue={order.warehouse_id ?? ""}>
-                  <option value="" disabled>
-                    Choose a warehouse
-                  </option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.code} — {w.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </ActionForm>
-          </details>
-        )}
-        {canManage && isDraft && warehouses.length === 0 && !order.warehouse_id && (
-          <p className="empty">
-            Create a warehouse in Administration → Organization, then set it
-            here before issuing.
-          </p>
-        )}
         {canSeeCosts ? (
           <p>
             <strong>

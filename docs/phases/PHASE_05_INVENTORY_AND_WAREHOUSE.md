@@ -167,7 +167,6 @@ evidence, this report.
 | Documentation updated | Pass | Module set + cross-cutting docs + the four audit logs + D-024 |
 | Production untouched | Pass | No operations against pbyjyamqmbotixahkknu |
 | Live manual verification (owner) | **Pending** | Script in INVENTORY_TEST_PLAN.md; requires a warehouse to exist first |
-| Phase 04 still works after the Phase 05 wiring | Pass | Regression found and fixed (finding 5): orders draft without a destination, set it on the order page, and cannot be issued without one |
 
 ## Open Questions
 
@@ -259,18 +258,6 @@ to run an independent pass before production now covers Phases 04 and 05
    could actually exploit it, but a permission flag should not survive the
    error that interrupted it; it is now cleared in an exception handler.
 4. **Advisors: mutable `search_path`** on both guard functions — fixed.
-
-5. **I broke purchasing while wiring inventory into it.** Making the
-   destination warehouse required *at order creation* meant that a
-   company with no warehouse — which is every company in staging — could
-   no longer raise a purchase order at all, and there was no way to set
-   the destination afterwards. Receiving is what needs the warehouse, not
-   drafting. Fixed: the field is optional at creation, settable on the
-   order page while the order is a draft, and **required at issue** with
-   the message "Set a destination warehouse before issuing — receiving
-   posts stock into it". The lesson is that adding a dependency to an
-   earlier phase must be checked against that phase's existing flows,
-   not only against the new one.
 
 Accepted risks (recorded, not fixed):
 

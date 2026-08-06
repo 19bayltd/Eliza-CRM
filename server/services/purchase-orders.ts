@@ -12,7 +12,6 @@ import {
   createOrderSchema,
   orderIdSchema,
   recordReceiptSchema,
-  setOrderWarehouseSchema,
   sumLineTotals,
 } from "@/server/validation/purchasing";
 import type { Tables } from "@/types/database";
@@ -227,22 +226,16 @@ export async function createOrder(input: unknown): Promise<string> {
     }
   }
 
-  // Optional at creation: an order can be drafted before the company has
-  // a warehouse, but it cannot be issued without one (see issueOrder).
-  let warehouseId: string | null = null;
-  if (parsed.data.warehouseId) {
-    const { data: warehouse } = await admin
-      .from("warehouses")
-      .select("id, company_id, status")
-      .eq("id", parsed.data.warehouseId)
-      .maybeSingle();
-    if (!warehouse || warehouse.company_id !== parsed.data.companyId) {
-      throw invalidInput("Warehouse does not belong to this company");
-    }
-    if (warehouse.status !== "active") {
-      throw conflict("Archived warehouses cannot receive purchase orders");
-    }
-    warehouseId = warehouse.id;
+  const { data: warehouse } = await admin
+    .from("warehouses")
+    .select("id, company_id, status")
+    .eq("id", parsed.data.warehouseId)
+    .maybeSingle();
+  if (!warehouse || warehouse.company_id !== parsed.data.companyId) {
+    throw invalidInput("Warehouse does not belong to this company");
+  }
+  if (warehouse.status !== "active") {
+    throw conflict("Archived warehouses cannot receive purchase orders");
   }
 
   const { data: number, error: numberError } = await admin.rpc("next_document_number", {
@@ -257,7 +250,7 @@ export async function createOrder(input: unknown): Promise<string> {
       company_id: parsed.data.companyId,
       number,
       supplier_id: supplier.id,
-      warehouse_id: warehouseId,
+      warehouse_id: warehouse.id,
       request_id: parsed.data.requestId ?? null,
       currency: parsed.data.currency,
       // Validated decimal string — never a float.
@@ -411,12 +404,6 @@ export async function issueOrder(input: unknown): Promise<void> {
   });
   const session = await requireActiveUser();
   if (order.status !== "draft") throw conflict("Only draft orders can be issued");
-  // Receiving posts stock, so an issued order must know where it lands.
-  if (!order.warehouse_id) {
-    throw conflict(
-      "Set a destination warehouse before issuing — receiving posts stock into it",
-    );
-  }
 
   const admin = createAdminSupabase();
   const { count, error: countError } = await admin
@@ -460,54 +447,6 @@ export async function issueOrder(input: unknown): Promise<void> {
     entityId: order.id,
     previousValue: { status: "draft" },
     newValue: { number: order.number, status: "issued", currency: order.currency },
-  });
-}
-
-/** Set or change the destination while the order is still a draft. */
-export async function setOrderWarehouse(input: unknown): Promise<void> {
-  const parsed = setOrderWarehouseSchema.safeParse(input);
-  if (!parsed.success) {
-    throw invalidInput(parsed.error.issues[0]?.message ?? "Invalid input");
-  }
-  const order = await loadOrderOr404(parsed.data.orderId);
-  const ctx = await requirePermission({
-    permission: PERMISSIONS.purchasingOrderManage,
-    companyId: order.company_id,
-  });
-  const session = await requireActiveUser();
-  if (order.status !== "draft") {
-    throw conflict("Only draft orders can change their destination");
-  }
-
-  const admin = createAdminSupabase();
-  const { data: warehouse } = await admin
-    .from("warehouses")
-    .select("id, company_id, code, status")
-    .eq("id", parsed.data.warehouseId)
-    .maybeSingle();
-  if (!warehouse || warehouse.company_id !== order.company_id) {
-    throw invalidInput("Warehouse does not belong to this company");
-  }
-  if (warehouse.status !== "active") {
-    throw conflict("Archived warehouses cannot receive purchase orders");
-  }
-
-  const { error } = await admin
-    .from("purchase_orders")
-    .update({ warehouse_id: warehouse.id, updated_by: ctx.userId })
-    .eq("id", order.id)
-    .eq("status", "draft");
-  if (error) throw internal();
-
-  await writeAudit({
-    module: "purchasing",
-    action: "purchase_order.created",
-    actorUserId: ctx.userId,
-    actorEmail: session.email,
-    companyId: order.company_id,
-    entityType: "purchase_order",
-    entityId: order.id,
-    newValue: { number: order.number, destination: warehouse.code },
   });
 }
 

@@ -170,10 +170,9 @@ export const cancelRequestSchema = z.object({
 export const createOrderSchema = z.object({
   companyId: uuidSchema,
   supplierId: uuidSchema,
-  // Phase 05: receiving posts stock, so an order needs a destination
-  // before it can be ISSUED — but not before it can be drafted, or a
-  // company with no warehouse yet could not raise an order at all.
-  warehouseId: uuidSchema.optional().or(z.literal("").transform(() => undefined)),
+  // Phase 05: receiving posts stock, so an order must say where the goods
+  // will land before anyone can receive against it.
+  warehouseId: uuidSchema,
   requestId: uuidSchema.optional().or(z.literal("").transform(() => undefined)),
   currency: currencySchema,
   exchangeRate: exchangeRateSchema,
@@ -191,11 +190,6 @@ export const addOrderLineSchema = z.object({
 });
 
 export const orderIdSchema = z.object({ orderId: uuidSchema });
-
-export const setOrderWarehouseSchema = z.object({
-  orderId: uuidSchema,
-  warehouseId: uuidSchema,
-});
 
 export const cancelOrderSchema = z.object({
   orderId: uuidSchema,

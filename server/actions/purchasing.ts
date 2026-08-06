@@ -16,7 +16,6 @@ import {
   createOrder,
   issueOrder,
   recordReceipt,
-  setOrderWarehouse,
 } from "@/server/services/purchase-orders";
 import {
   addPurchaseDocument,
@@ -190,23 +189,6 @@ export async function addOrderLineAction(
       unitPrice: str(formData, "unitPrice"),
       notes: opt(formData, "notes"),
     });
-    revalidatePath(`${PURCHASING_PATH}/orders/${str(formData, "orderId")}`);
-    return { ok: true, data: undefined };
-  } catch (err) {
-    return toActionError(err);
-  }
-}
-
-export async function setOrderWarehouseAction(
-  _prev: ActionResult | null,
-  formData: FormData,
-): Promise<ActionResult> {
-  try {
-    await setOrderWarehouse({
-      orderId: str(formData, "orderId"),
-      warehouseId: str(formData, "warehouseId"),
-    });
-    revalidateAll();
     revalidatePath(`${PURCHASING_PATH}/orders/${str(formData, "orderId")}`);
     return { ok: true, data: undefined };
   } catch (err) {
