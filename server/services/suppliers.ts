@@ -299,7 +299,7 @@ export async function archiveContact(
   const admin = createAdminSupabase();
   const { data: before } = await admin
     .from("supplier_contacts")
-    .select("*, suppliers!inner(code)")
+    .select("*, suppliers!supplier_contacts_supplier_id_fkey!inner(code)")
     .eq("id", parsed.data.id)
     .maybeSingle();
   if (!before) throw notFound("Contact not found");

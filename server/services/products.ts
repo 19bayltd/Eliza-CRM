@@ -393,7 +393,9 @@ export async function createVariant(
   // Combination uniqueness across the product's variants.
   const { data: existingRows, error: vavError } = await admin
     .from("variant_attribute_values")
-    .select("variant_id, attribute_value_id, product_variants!inner(product_id)")
+    .select(
+      "variant_id, attribute_value_id, product_variants!variant_attribute_values_variant_id_fkey!inner(product_id)",
+    )
     .eq("product_variants.product_id", product.id);
   if (vavError) throw internal();
   const byVariant = new Map<string, string[]>();
@@ -478,7 +480,7 @@ export async function setVariantStatus(
   const admin = createAdminSupabase();
   const { data: before } = await admin
     .from("product_variants")
-    .select("*, products!inner(status)")
+    .select("*, products!product_variants_product_id_fkey!inner(status)")
     .eq("id", parsed.data.variantId)
     .maybeSingle();
   if (!before) throw notFound("Variant not found");

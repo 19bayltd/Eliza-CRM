@@ -129,7 +129,7 @@ export async function listProductImages(productId: string): Promise<ProductImage
 
   const { data: rows, error } = await admin
     .from("product_images")
-    .select("*, file_metadata!inner(original_name, status)")
+    .select("*, file_metadata!product_images_file_id_fkey!inner(original_name, status)")
     .eq("product_id", product.id)
     .eq("status", "active")
     .order("tier")
@@ -155,7 +155,7 @@ export async function removeProductImage(imageId: string): Promise<void> {
   const admin = createAdminSupabase();
   const { data: image } = await admin
     .from("product_images")
-    .select("*, products!inner(sku)")
+    .select("*, products!product_images_product_id_fkey!inner(sku)")
     .eq("id", parsed.data)
     .maybeSingle();
   if (!image || image.status !== "active") throw notFound("Image not found");

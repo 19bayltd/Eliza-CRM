@@ -106,7 +106,7 @@ export async function listSupplierDocuments(
 
   const { data: rows, error } = await admin
     .from("supplier_documents")
-    .select("*, file_metadata!inner(original_name, status)")
+    .select("*, file_metadata!supplier_documents_file_id_fkey!inner(original_name, status)")
     .eq("supplier_id", supplier.id)
     .eq("status", "active")
     .order("created_at");
@@ -128,7 +128,7 @@ export async function removeSupplierDocument(documentId: string): Promise<void> 
   const admin = createAdminSupabase();
   const { data: doc } = await admin
     .from("supplier_documents")
-    .select("*, suppliers!inner(code)")
+    .select("*, suppliers!supplier_documents_supplier_id_fkey!inner(code)")
     .eq("id", parsed.data)
     .maybeSingle();
   if (!doc || doc.status !== "active") throw notFound("Document not found");

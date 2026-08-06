@@ -55,7 +55,10 @@ async function loadQuotations(params: {
   let query = admin
     .from("supplier_quotations")
     .select(
-      "*, suppliers!inner(code, name), products!inner(sku), product_variants(sku), companies!inner(base_currency)",
+      // Embeds name their foreign key explicitly: the company-integrity
+      // migration added a second (id, company_id) path to each parent, and
+      // an unhinted embed is ambiguous for PostgREST (HTTP 300).
+      "*, suppliers!supplier_quotations_supplier_id_fkey!inner(code, name), products!supplier_quotations_product_id_fkey!inner(sku), product_variants!supplier_quotations_variant_id_fkey(sku), companies!inner(base_currency)",
     )
     .eq("company_id", params.companyId)
     .order("created_at", { ascending: false });
@@ -324,7 +327,7 @@ export async function archiveQuotation(
   const admin = createAdminSupabase();
   const { data: before } = await admin
     .from("supplier_quotations")
-    .select("*, suppliers!inner(code)")
+    .select("*, suppliers!supplier_quotations_supplier_id_fkey!inner(code)")
     .eq("id", parsed.data.id)
     .maybeSingle();
   if (!before) throw notFound("Quotation not found");
