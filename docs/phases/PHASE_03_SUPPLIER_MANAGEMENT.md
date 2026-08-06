@@ -225,6 +225,19 @@ Fixed before live verification (all deployed):
     the registry row, which could strand an active row forever; the
     order is reversed with restore-on-failure.
 
+Regression found during live verification (2026-08-06, fixed):
+
+11. **Ambiguous PostgREST embeds caused by finding 1.** The composite
+    company-integrity FKs gave every parent table a second relationship
+    path, so unhinted resource embeds became ambiguous and PostgREST
+    answered HTTP 300 — the supplier detail page returned 500. Evidence:
+    staging API log shows `GET /rest/v1/supplier_quotations?select=*,
+    suppliers!inner(code,name),...` → 300 while every other request in
+    the same page load returned 200. Fixed by naming the intended
+    foreign key in all nine affected embeds (supplier quotations,
+    quotation/contact archival, supplier documents, variant status,
+    variant attribute values, product images).
+
 Accepted risks (recorded, not fixed):
 
 - **Existence oracle via fetch-before-authorize** (systemic, Phases
