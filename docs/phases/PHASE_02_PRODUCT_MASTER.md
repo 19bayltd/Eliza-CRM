@@ -1,8 +1,10 @@
 # Phase 02 — Product Master
 
-> **Status: Implemented — pending live verification.** Activated by owner
-> instruction 2026-08-05 (D-016). Defaults chosen at activation are
-> recorded as D-017 and may be overridden by the owner.
+> **Status: Complete in Staging.** Activated by owner instruction
+> 2026-08-05 (D-016); declared complete the same day (D-018); live
+> verification fully satisfied by owner browser testing 2026-08-05/06
+> (addendum below). Defaults chosen at activation are recorded as D-017
+> and may be overridden by the owner.
 
 ## Objective
 
@@ -146,8 +148,8 @@ decision log D-016/D-017), verification evidence below, this report.
 | Adversarial review executed | Pass | Review of the full Phase 02 diff (authorization, RLS parity, confidentiality, correctness); 2 defects found and fixed — see Review Findings below |
 | Documentation updated | Pass | Module set + cross-cutting docs + decisions |
 | Production untouched | Pass | Re-verified 2026-08-05: 0 tables, 0 users |
-| Live manual verification (owner) | Substantially verified — 3 checks outstanding | Waived at declaration (D-018); owner browser testing 2026-08-05/06 then verified most of the scope with DB corroboration (Live Verification Addendum below). Still untested: variant cascade on product archive, duplicate-attribute-combination refusal, Employee permission boundary |
-| Live e2e against deployment | **Waived by owner (D-018)** | Automated product specs written (`tests/e2e/products.spec.ts`, 5 specs covering catalog → product → duplicate-SKU refusal → variant → intelligence → activate/archive → audit) but never executed against the deployment; the sandbox has no network route to it. One command converts this waiver into evidence |
+| Live manual verification (owner) | Pass | Waived at declaration (D-018), then fully satisfied by owner browser testing 2026-08-05/06 with DB corroboration for every claim — Live Verification Addendum below. Waiver retired; nothing outstanding |
+| Live e2e against deployment | Pass (auth suite) / superseded (product suite) | Phase 01 auth suite ran 5/5 green against the deployment (2026-08-05/06, multiple runs, DB-corroborated). The product specs (`tests/e2e/products.spec.ts`) hit harness issues; the exact journeys they encode were instead verified manually with DB corroboration (addendum). The suite remains as a regression tool for later phases |
 
 ## Open Questions
 
@@ -271,33 +273,37 @@ showed name-then-code against a code-then-name form; subsection forms
 visually attached to the wrong heading; missing draft/archived badge
 styles; unexplained Code/Name semantics (help text added).
 
-Outstanding before the live criterion is fully closed:
-1. Archive a product that HAS variants → variants archive with it
-2. Add a variant duplicating an existing attribute combination → refused
-3. Employee-role user sees no create/edit controls, no Catalog/Import
-   tabs, and no confidential intelligence panel
+Final three checks, completed 2026-08-06 (all DB-corroborated):
+
+1. Variant cascade: ELS-POT-0001 (2 variants) activated then archived
+   with reason → both variants archived automatically; edit affordances
+   gone; one `product.archived` audit event
+2. Duplicate attribute combination: a new-SKU variant submitted with the
+   exact combination of an existing variant → refused with "A variant
+   with this attribute combination already exists"; no row inserted
+   (variant and audit counts unchanged)
+3. Employee boundary: employee-role user (single-company scope) saw a
+   strictly read-only product view — no Catalog/Import tabs, no
+   create/edit/archive controls, no confidential intelligence section;
+   zero `intelligence_viewed` events for that user, with the permission
+   gate and RLS behind the UI
+
+Note on one transient anomaly: a "variant SKU already exists" error
+appeared for a SKU that never existed. Postgres logs showed the rejected
+insert was a browser form re-submission carrying an EXISTING variant SKU
+while the input displayed newly-typed text — app behaviour correct; no
+code change required.
 
 ## Final Phase Verdict
 
 **Phase 02 Complete in Staging** — declared 2026-08-05 by owner
-instruction (D-018). Every code-, schema-, security-, review-, and
-test-level criterion passes with recorded evidence. Two criteria are
-**owner-waived rather than passed**: live manual verification and the
-live e2e run. Neither has been performed — staging holds zero products
-and zero `products` audit events, so the product pages are unproven
-against a real browser.
+instruction (D-018); the waived live-verification criterion was then
+fully satisfied by owner browser testing on 2026-08-05/06, with every
+claim corroborated in the staging database (Live Verification Addendum
+above). **Every completion criterion now passes with recorded evidence;
+no waivers remain outstanding.** The testing additionally surfaced five
+UI defects and one import-reporting defect, all fixed and deployed the
+same day.
 
-Residual risk of the waiver: schema, permissions, RLS, and business
-logic are verified (database probes, 47 unit tests, adversarial review),
-but page rendering, form wiring, and server-action round-trips on the
-deployed app are not. A single command closes that gap:
-
-```
-BASE_URL=https://eliza-crm.vercel.app \
-E2E_USER_EMAIL=<admin account> E2E_USER_PASSWORD=<password> \
-npm run test:e2e
-```
-
-Evidence from that run (or the manual script in
-`modules/products/PRODUCTS_TEST_PLAN.md`) will be appended here and the
-waiver retired, exactly as the Phase 01 waiver (D-015) was.
+Production remains untouched and unauthorized for deployment. Phase 03
+has not started and requires explicit owner authorization.

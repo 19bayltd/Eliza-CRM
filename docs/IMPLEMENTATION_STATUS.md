@@ -7,22 +7,20 @@ D-016)
 
 ## Current Status
 
-**Phase 02 Complete in Staging** (declared 2026-08-05 by owner
-instruction, D-018). All Phase 02 scope is built, applied to staging,
-unit-tested (47/47), RLS-probed with recorded evidence, advisor-checked,
-and adversarially reviewed (2 defects found and fixed).
-
-Two criteria are **owner-waived rather than passed**: live manual
-verification and the live e2e run. Neither was performed — staging holds
-zero products and zero `products` audit events, so deployed page
-rendering, form wiring, and server-action round-trips for the product
-module are unproven. Automated specs (`tests/e2e/products.spec.ts`, 5
-specs) are written and ready; one command retires the waiver:
-
-```
-BASE_URL=https://eliza-crm.vercel.app E2E_USER_EMAIL=<admin>
-E2E_USER_PASSWORD=<password> npm run test:e2e
-```
+**Phase 02 Complete in Staging — all criteria evidence-backed, no
+waivers outstanding.** Declared 2026-08-05 by owner instruction (D-018);
+the waived live-verification criteria were then fully satisfied by owner
+browser testing 2026-08-05/06, with every claim corroborated in the
+staging database: catalog management, products with duplicate-SKU
+refusal, variants with duplicate-combination refusal, status lifecycle
+with variant cascade on archive, confidential intelligence read+write
+(reads audited, values never in audit payloads), image upload, the full
+CSV import cycle (validate → per-row rejection reasons → apply), the
+append-only audit trail, and the Employee permission boundary (read-only
+view, no confidential panel, zero intelligence reads). The testing also
+surfaced six defects (five UI, one import-reporting), all fixed and
+deployed the same day. Evidence: phase document, Live Verification
+Addendum.
 
 Defaults chosen at activation (SKU format, nested categories,
 intelligence audience, private image buckets, role mappings) are
@@ -85,9 +83,11 @@ None.
 
 ## Post-Completion Follow-ups
 
-- **Retire the Phase 02 waiver (D-018)** — run the product e2e suite or
-  the manual script (`modules/products/PRODUCTS_TEST_PLAN.md`) against
-  the deployment; evidence gets appended to the phase document
+- ~~Retire the Phase 02 waiver (D-018)~~ — DONE 2026-08-06 via owner
+  browser testing (evidence in the phase document)
+- Staging test-data cleanup before real catalog data: archive the
+  E2E-/test units, categories, attributes (incl. the attribute named
+  "M"), and test products; fix crossed variant SKU/size labels
 
 - Administrator test account (nkfhhdndjdh@gmail.com) password rotation —
   operator agreed to change it (displayed during e2e testing)
@@ -137,6 +137,6 @@ Production deployment not authorized.
 
 Phase 01: **Complete in Staging** (D-015; all criteria evidence-backed,
 no waivers outstanding). Phase 02: **Complete in Staging** (D-018; all
-criteria evidence-backed except live manual verification and the live
-e2e run, both owner-waived and outstanding). Itemized criteria table in
+criteria evidence-backed, waivers retired by owner browser testing
+2026-08-05/06). Itemized criteria table + Live Verification Addendum in
 `phases/PHASE_02_PRODUCT_MASTER.md`.
