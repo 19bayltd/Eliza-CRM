@@ -1,8 +1,10 @@
 # Phase 03 — Supplier Management
 
-> **Status: Implemented — pending live verification.** Activated by owner
-> instruction 2026-08-06 ("move to phase 3"). Defaults chosen at
+> **Status: Complete in Staging.** Activated by owner instruction
+> 2026-08-06 ("move to phase 3"); completed the same day after 9/9 live
+> manual checks, each verified against the database. Defaults chosen at
 > activation are recorded as D-019 and may be overridden by the owner.
+> Production deployment remains unauthorized.
 
 ## Objective
 
@@ -134,7 +136,7 @@ verification evidence, this report.
 | Adversarial review executed | Pass | 3 independent reviewers (authorization/price-leakage, database/RLS, correctness); 10 findings verified and fixed, 2 recorded as accepted risks — see Review Findings |
 | Documentation updated | Pass | Module set + cross-cutting docs + D-019 |
 | Production untouched | Pass | No operations against pbyjyamqmbotixahkknu |
-| Live manual verification (owner) | **Pending** | Script in SUPPLIERS_TEST_PLAN.md |
+| Live manual verification (owner) | Pass | 9/9 checks executed in-browser 2026-08-06, each confirmed against the database — see Live manual verification |
 
 ## Open Questions
 
@@ -154,8 +156,8 @@ conversions; validity dates are displayed to compensate.
 - [x] Migrations + reference data applied to staging
 - [x] Services, actions, UI implemented
 - [x] Unit tests + staging RLS verification
-- [ ] Live manual verification (owner)
-- [ ] Completion declaration
+- [x] Live manual verification (owner, 9/9 checks, 2026-08-06)
+- [x] Completion declaration
 
 ## Verification Evidence
 
@@ -179,6 +181,30 @@ RLS probe (fixtures inserted + probed + rolled back; residue 0):
     INSERT suppliers: denied SQLSTATE 42501
 production:  untouched
 ```
+
+### Live manual verification (owner, 2026-08-06)
+
+Performed by the owner in a browser against `eliza-crm.vercel.app`
+(staging database), company Eliza Source, base currency BDT. Every
+observation below was independently confirmed against the database by
+querying rows, audit entries, or storage objects — screenshots alone
+were not accepted as evidence.
+
+| # | Check | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Supplier created; bad code refused | Pass | `SUP-BD-001` created 06:42:20; exactly one row, zero malformed codes; `SUP 1` refused with the format message |
+| 2 | Two contacts; archive one with a reason | Pass | Rahim Uddin archived 06:59:51 with reason "Testing Purpose"; Karim Mia added 08:16:20 stays `active`; empty reason blocked (≥3 chars, enforced client- and server-side) |
+| 3 | Quotation with price wall | Pass | Cost row stores `1.8500` / `121.500000` exactly; row renders `1.85 USD (≈ 224.78 BDT)`; `quotation.created` payload carries no price; `quotation.cost_viewed` fired on exposure |
+| 4 | Comparison view | Pass | Two suppliers side by side for `ELS-TSH-0001` with quoted and normalized columns; archived quotes retained for history |
+| 5 | Manager sees terms, not prices | Pass | Prices render `•••`, no Normalized column, no new-quotation form, no documents, no compare link — and **zero `quotation.cost_viewed` events for that user**, proving the server never fetched the costs |
+| 6 | Employee wall | Pass | Quotations and Documents sections absent entirely (not masked); no edit forms; Administration nav hidden |
+| 7 | Document lifecycle | Pass | `file.uploaded` (pdf, 13,264 bytes) → `supplier.document_uploaded` → `file.downloaded` → `file.deleted` + `supplier.document_removed`; registry and file rows `deleted`; `storage.objects` for the bucket = 0 |
+| 8 | Archive guard in order | Pass | Archive refused while an active quotation existed (owner-observed message, no count disclosed); quotation archived 09:19:22; supplier archived 09:19:39 |
+| 9 | Audit trail complete and price-free | Pass | Full trail with reasons on every archival; scan of the entire `audit_log` for `1.85`/`2.25`/`1.07`/`121.5`/`224.78`/`273.38`/`130.01`/`unit_price`/`exchange_rate` returned **0 rows** |
+
+Exact-decimal normalization was additionally proven in the live browser
+with a float-discriminating pair: `1.07` at rate `121.50` rendered
+**`130.01 BDT`**, where float `toFixed` yields `130.00`.
 
 ## Review Findings (3 independent reviewers, 2026-08-06)
 
@@ -267,8 +293,18 @@ Accepted risks (recorded, not fixed):
 
 ## Final Phase Verdict
 
-**Implemented — pending live verification.** All code-, schema-,
-security-, review-, and test-level criteria pass with evidence
-(64 unit tests after review fixes). Remaining: owner-side live manual
-script (SUPPLIERS_TEST_PLAN.md) against the deployed app, then the
-completion declaration.
+**Complete in Staging (2026-08-06).** Every completion criterion passes
+with evidence: 64 unit tests, staging RLS probes, a three-reviewer
+adversarial review (12 findings fixed, 3 accepted risks recorded), and
+9/9 owner-run live manual checks in the browser, each independently
+confirmed against the database rather than accepted from screenshots.
+
+The confidentiality goal is met at three layers, verified separately:
+the cost table is RLS deny-all so no client can read it; the services
+withhold prices from roles lacking `cost.view` (proven by the absence
+of `cost_viewed` events for the Manager account); and the audit log
+contains zero price, rate, or normalized values across every module
+while still recording 13 price-exposure events.
+
+Production remains untouched and unauthorized. Phase 04 requires
+explicit owner activation.
