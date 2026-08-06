@@ -155,7 +155,7 @@ verification evidence, this report.
 | Price wall enforced at DB boundary | Pass | `purchase_order_line_costs` RLS-enabled with 0 policies (deny-all); reads only via audited service |
 | Money arithmetic exact | Pass | `sumLineTotals` BigInt; unit tests cover 0.1+0.2 and the 2.675 half-up case |
 | Prices absent from audit | Pass | `cost_viewed` records counts; no price/rate/total in any payload |
-| Unit tests pass | Pass | 85/85 (21 new) |
+| Unit tests pass | Pass | 87/87 (23 new, incl. the embed guard) |
 | Lint / typecheck / build pass | Pass | 0 errors, 0 warnings; 5 new routes present |
 | Advisors reviewed | Pass | Both new WARNs fixed (see finding 1); remaining INFOs are the intentional deny-all tables |
 | Review executed | Pass | Self-review of the diff — 4 findings fixed; **not** the 3-reviewer adversarial process used in Phases 02–03 (see Review Findings) |
@@ -197,7 +197,7 @@ see samples at all.
 ```
 lint:        0 errors, 0 warnings
 typecheck:   clean (strict)
-unit tests:  85 passed / 85 (7 files; 21 new purchasing tests)
+unit tests:  87 passed / 87 (8 files; 21 purchasing + 2 embed-guard)
 build:       production build OK — /purchasing, /purchasing/orders,
              /purchasing/orders/[id], /purchasing/requests/[id],
              /purchasing/samples present
@@ -267,6 +267,20 @@ remains a recommended follow-up before production.
    `purchase-documents.ts` (upload/list/remove, registry-first removal
    with restore-on-failure, per-download audit) and wired both the order
    page (documents) and the samples page (photos) to it.
+
+5. **The Phase 03 embed mistake, repeated.** The purchase-order page
+   500'd as soon as it had a receipt query to run: `purchase_receipts`
+   embedded `purchase_receipt_lines` without naming a foreign key, and
+   the company-integrity migration had given that pair two FK paths, so
+   PostgREST answered HTTP 300. This is exactly finding 11 of Phase 03,
+   which I documented and then reproduced. Fixed by naming the key, and
+   guarded permanently: `tests/unit/postgrest-embeds.test.ts` fails the
+   build if ANY embed in `server/services` omits its foreign key —
+   an absolute rule rather than a list of known-ambiguous pairs, because
+   such a list needs updating every time a composite FK is added, and
+   forgetting to update it is the failure itself. Four further unhinted
+   embeds (two variant lookups, three role lookups) were named at the
+   same time; none was ambiguous yet.
 
 Accepted risks (recorded, not fixed):
 

@@ -96,13 +96,13 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     admin
       .from("purchase_order_lines")
       .select(
-        "*, products!purchase_order_lines_product_id_fkey!inner(sku), product_variants(sku)",
+        "*, products!purchase_order_lines_product_id_fkey!inner(sku), product_variants!purchase_order_lines_variant_id_fkey(sku)",
       )
       .eq("order_id", order.id)
       .order("created_at"),
     admin
       .from("purchase_receipts")
-      .select("*, purchase_receipt_lines(id)")
+      .select("*, purchase_receipt_lines!purchase_receipt_lines_receipt_id_fkey(id)")
       .eq("order_id", order.id)
       .order("received_at", { ascending: false }),
   ]);

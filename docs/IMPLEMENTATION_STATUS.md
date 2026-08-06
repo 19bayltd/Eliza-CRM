@@ -92,7 +92,7 @@ Phase 03 (2026-08-06):
 requests, a configurable approval engine (thresholds as `approval_rules`
 rows, self-approval refused server-side), purchase orders with an
 RLS-walled cost table, atomic receiving, samples, and purchase documents
-(order paperwork and sample photos) are built, applied to staging, unit-tested (85/85), probed, and deployed
+(order paperwork and sample photos) are built, applied to staging, unit-tested (87/87), probed, and deployed
 via `main`. Remaining before "Phase 04 Complete in Staging": the
 owner-side live script (`modules/purchasing/PURCHASING_TEST_PLAN.md`),
 then the completion declaration. Note: this phase had a **self-review**
@@ -138,7 +138,7 @@ as D-021.
 
 ## Test Status
 
-Unit 85/85 pass (7 files; 21 Phase 04 purchasing tests). Integration
+Unit 87/87 pass (8 files; 21 Phase 04 purchasing tests plus a guard that fails the build on any PostgREST embed missing its foreign key). Integration
 suite env-gated. E2E: 5/5 green against the live deployment (Phase 01
 scope); Phases 02 and 03 verified by owner browser testing (Phase 03:
 9/9 checks, 2026-08-06). Staging SQL verification: Phase 01/02/03 probes

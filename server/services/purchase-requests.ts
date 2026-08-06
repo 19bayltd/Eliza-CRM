@@ -98,7 +98,7 @@ export async function getRequestDetail(requestId: string): Promise<RequestDetail
     admin
       .from("purchase_request_lines")
       .select(
-        "*, products!purchase_request_lines_product_id_fkey!inner(sku), product_variants(sku)",
+        "*, products!purchase_request_lines_product_id_fkey!inner(sku), product_variants!purchase_request_lines_variant_id_fkey(sku)",
       )
       .eq("request_id", request.id)
       .order("created_at"),

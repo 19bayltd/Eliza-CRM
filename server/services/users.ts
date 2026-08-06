@@ -76,7 +76,7 @@ export async function listUsers(): Promise<UserListEntry[]> {
     admin.from("user_company_scopes").select("user_id, company_id"),
     admin
       .from("user_roles")
-      .select("id, user_id, company_id, roles(key, name)"),
+      .select("id, user_id, company_id, roles!user_roles_role_id_fkey(key, name)"),
   ]);
   if (profiles.error || scopes.error || roles.error) throw internal();
 
@@ -245,7 +245,7 @@ async function requirePendingInvitation(userId: string) {
 
   const { data: roleRows } = await admin
     .from("user_roles")
-    .select("role_id, company_id, roles(key)")
+    .select("role_id, company_id, roles!user_roles_role_id_fkey(key)")
     .eq("user_id", userId);
 
   return { session, admin, profile, companyIds, roleRows: roleRows ?? [] };
@@ -518,7 +518,7 @@ export async function revokeRole(
 
   const { data: assignment } = await admin
     .from("user_roles")
-    .select("id, user_id, company_id, roles(key)")
+    .select("id, user_id, company_id, roles!user_roles_role_id_fkey(key)")
     .eq("id", parsed.data.userRoleId)
     .maybeSingle();
   if (!assignment) throw notFound("Role assignment not found");
