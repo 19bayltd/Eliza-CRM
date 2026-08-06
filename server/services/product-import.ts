@@ -393,14 +393,19 @@ export async function listImportJobs(companyId: string): Promise<Tables<"import_
   return data;
 }
 
-/** Rejected/failed rows of one job, for the result report. */
+/**
+ * Rows a user needs to look at: rejected rows always, plus — once the job
+ * has been applied — rows that were meant to be written but failed. Before
+ * applying, every row is still unapplied, so "not applied" must NOT count
+ * as an issue there (it reported every row as a problem).
+ */
 export async function listImportIssues(jobId: string): Promise<Tables<"import_job_rows">[]> {
   const parsed = importApplySchema.safeParse({ jobId });
   if (!parsed.success) throw invalidInput("Invalid identifier");
   const admin = createAdminSupabase();
   const { data: job } = await admin
     .from("import_jobs")
-    .select("id, company_id")
+    .select("id, company_id, status")
     .eq("id", parsed.data.jobId)
     .maybeSingle();
   if (!job) throw notFound("Import job not found");
@@ -408,12 +413,16 @@ export async function listImportIssues(jobId: string): Promise<Tables<"import_jo
     permission: PERMISSIONS.productsImport,
     companyId: job.company_id,
   });
-  const { data, error } = await admin
+
+  const query = admin
     .from("import_job_rows")
     .select("*")
     .eq("job_id", job.id)
-    .or("planned_action.eq.reject,applied.eq.false")
     .order("row_number");
+  const { data, error } =
+    job.status === "applied"
+      ? await query.or("planned_action.eq.reject,applied.eq.false")
+      : await query.eq("planned_action", "reject");
   if (error) throw internal();
   return data;
 }

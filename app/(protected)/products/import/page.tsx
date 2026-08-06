@@ -25,7 +25,9 @@ export default async function ImportPage() {
     if (!canImport) continue;
     const jobs = await listImportJobs(company.id);
     const issuesByJob = new Map<string, Awaited<ReturnType<typeof listImportIssues>>>();
-    for (const job of jobs.filter((j) => j.status === "validated").slice(0, 3)) {
+    for (const job of jobs
+      .filter((j) => j.status === "validated" || j.status === "applied")
+      .slice(0, 3)) {
       issuesByJob.set(job.id, await listImportIssues(job.id));
     }
     sections.push({ company, jobs, issuesByJob });
@@ -113,21 +115,25 @@ export default async function ImportPage() {
                             >
                               <input type="hidden" name="jobId" value={job.id} />
                             </ActionForm>
-                            {(issuesByJob.get(job.id) ?? []).length > 0 && (
-                              <details>
-                                <summary>
-                                  {issuesByJob.get(job.id)!.length} row issue(s)
-                                </summary>
-                                <ul>
-                                  {issuesByJob.get(job.id)!.map((row) => (
-                                    <li key={row.id}>
-                                      Row {row.row_number}: {row.message ?? row.planned_action}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </details>
-                            )}
                           </>
+                        )}
+                        {(issuesByJob.get(job.id) ?? []).length > 0 && (
+                          <details>
+                            <summary>
+                              {issuesByJob.get(job.id)!.length}{" "}
+                              {job.status === "applied"
+                                ? "row issue(s)"
+                                : "rejected row(s)"}
+                            </summary>
+                            <ul>
+                              {issuesByJob.get(job.id)!.map((row) => (
+                                <li key={row.id}>
+                                  Row {row.row_number}:{" "}
+                                  {row.message ?? row.planned_action}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
                         )}
                       </td>
                     </tr>
