@@ -37,6 +37,14 @@ export const PERMISSIONS = {
   productsIntelligenceView: "products.intelligence.view",
   productsImport: "products.import",
   productsExport: "products.export",
+  // Phase 03 — supplier management
+  suppliersView: "suppliers.view",
+  suppliersManage: "suppliers.manage",
+  suppliersQuotationView: "suppliers.quotation.view",
+  suppliersQuotationCostView: "suppliers.quotation.cost.view",
+  suppliersQuotationManage: "suppliers.quotation.manage",
+  suppliersDocumentDownload: "suppliers.document.download",
+  suppliersDocumentManage: "suppliers.document.manage",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

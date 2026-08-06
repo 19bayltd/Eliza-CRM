@@ -95,3 +95,7 @@ Module-specific permissions are added when their phase activates.
 Phase 02 (2026-08-05) added the 8-permission `products.*` set (migration
 20260805110002); the module matrix and combination rules live in
 `modules/products/PRODUCTS_PERMISSION_MATRIX.md`.
+
+Phase 03 (2026-08-06) added the 7-permission `suppliers.*` set (migration
+20260806120002), including the quotation existence/price split; matrix in
+`modules/suppliers/SUPPLIERS_PERMISSION_MATRIX.md`.

@@ -2,50 +2,39 @@
 
 ## Current Phase
 
-Phase 02 — Product Master (activated by owner instruction 2026-08-05,
-D-016)
+Phase 03 — Supplier Management (activated by owner instruction
+2026-08-06, D-019)
 
 ## Current Status
 
-**Phase 02 Complete in Staging — all criteria evidence-backed, no
-waivers outstanding.** Declared 2026-08-05 by owner instruction (D-018);
-the waived live-verification criteria were then fully satisfied by owner
-browser testing 2026-08-05/06, with every claim corroborated in the
-staging database: catalog management, products with duplicate-SKU
-refusal, variants with duplicate-combination refusal, status lifecycle
-with variant cascade on archive, confidential intelligence read+write
-(reads audited, values never in audit payloads), image upload, the full
-CSV import cycle (validate → per-row rejection reasons → apply), the
-append-only audit trail, and the Employee permission boundary (read-only
-view, no confidential panel, zero intelligence reads). The testing also
-surfaced six defects (five UI, one import-reporting), all fixed and
-deployed the same day. Evidence: phase document, Live Verification
-Addendum.
+**Phase 03 implemented — pending owner live verification.** Supplier
+directory, contacts, confidential quotations (prices RLS-walled behind a
+separate cost permission, reads audited, values never in audit
+payloads), currency-normalized comparison view, and private supplier
+documents are built, applied to staging, unit-tested (57/57), RLS-probed
+(price wall verified: employee sees suppliers but zero quotations/costs/
+documents; client writes denied), advisor-checked, and deployed via
+`main`. Remaining before "Phase 03 Complete in Staging": the owner-side
+live script (`modules/suppliers/SUPPLIERS_TEST_PLAN.md`), then the
+completion declaration. Defaults recorded as D-019.
 
-Defaults chosen at activation (SKU format, nested categories,
-intelligence audience, private image buckets, role mappings) are
-recorded as D-017 and may be overridden by the owner.
+Phases 00–02 are **Complete in Staging** with all criteria
+evidence-backed (Phase 02 fully live-verified by owner browser testing
+2026-08-05/06). Production deployment is NOT authorized. Phase 04 must
+NOT begin without explicit owner authorization.
 
-Phase 01 is **Complete in Staging** (declared 2026-08-05, D-015; the one
-waived criterion was satisfied by evidence the same day — owner
-`login_succeeded` 09:44:15 UTC; no waivers remain). Production
-deployment is NOT authorized. Phase 03 must NOT begin without explicit
-owner authorization.
+## Approved Scope (Phase 03)
 
-## Approved Scope (Phase 02)
-
-Products, variants, categories (nested), attributes + values, units,
-per-company SKU management, status workflow (draft/active/archived with
-reasons), confidential product intelligence (RLS-walled, read-audited),
-public/confidential product images (private buckets, signed URLs), CSV
-import pipeline (validate → apply/discard with per-row ledger), 8 new
-permissions with default role mappings, module documentation, tests.
+Suppliers (directory, contacts, capabilities), confidential quotations
+linked to products/variants with captured exchange rates, quotation
+comparison, private supplier documents, 7 new permissions with default
+role mappings, module documentation, tests.
 
 ## Excluded From Current Work
 
-Suppliers (03), purchasing/samples (04), inventory (05), barcodes (06),
-POS, CRM, orders, HR, finance, reporting, dashboards, alerts, AI.
-Attribute values via CSV and open-web product images (deferred, D-017).
+Purchasing/samples (04), inventory (05), barcodes (06), POS, CRM,
+orders, HR, finance, reporting, dashboards, alerts, AI. Supplier
+payments (12), supplier portals.
 
 ## Completed Work
 
@@ -73,13 +62,14 @@ Phase 02 (2026-08-05):
 
 ## Work in Progress
 
-None.
+Phase 03 — awaiting owner live verification (script in
+`modules/suppliers/SUPPLIERS_TEST_PLAN.md`).
 
 ## Blocked Work
 
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md` (now would include
-  Phase 02 migrations)
+  Phase 02 + 03 migrations)
 
 ## Post-Completion Follow-ups
 
@@ -97,17 +87,17 @@ None.
 
 ## Open Decisions
 
-- Owner ratification or override of Phase 02 defaults (D-017)
+- Owner ratification or override of Phase 02/03 defaults (D-017, D-019)
 - Owner approval to execute the production deployment plan
-- Phase 03 activation (do not start without it)
+- Phase 04 activation (do not start without it)
 
 ## Test Status
 
-Unit 47/47 pass (5 files; 19 new Phase 02 tests). Integration suite
-env-gated. E2E: 5/5 green against the live deployment (2026-08-05,
-Phase 01 scope); product-flow specs accompany Phase 02 live
-verification. Staging SQL verification: Phase 01 + Phase 02 probes all
-passed with recorded evidence (phase docs).
+Unit 57/57 pass (6 files; 10 new Phase 03 supplier tests). Integration
+suite env-gated. E2E: 5/5 green against the live deployment (Phase 01
+scope); Phase 02 verified by owner browser testing. Staging SQL
+verification: Phase 01/02/03 probes all passed with recorded evidence
+(phase docs — Phase 03 adds the quotation price-wall probe).
 
 ## Security Audit Status
 
@@ -123,8 +113,8 @@ Findings.
 
 ## Migration Status
 
-Staging: 9/9 applied (7 Phase 01 + 2 Phase 02) + seed. Production: none
-(by design; gated plan prepared).
+Staging: 11/11 applied (7 Phase 01 + 2 Phase 02 + 2 Phase 03) + seed.
+Production: none (by design; gated plan prepared).
 
 ## Deployment Status
 
@@ -135,8 +125,7 @@ Production deployment not authorized.
 
 ## Phase Completion Verdict
 
-Phase 01: **Complete in Staging** (D-015; all criteria evidence-backed,
-no waivers outstanding). Phase 02: **Complete in Staging** (D-018; all
-criteria evidence-backed, waivers retired by owner browser testing
-2026-08-05/06). Itemized criteria table + Live Verification Addendum in
-`phases/PHASE_02_PRODUCT_MASTER.md`.
+Phases 00–02: **Complete in Staging**, all criteria evidence-backed
+(D-015/D-018 waivers retired by evidence). Phase 03: **Implemented —
+pending owner live verification**; criteria table in
+`phases/PHASE_03_SUPPLIER_MANAGEMENT.md`.

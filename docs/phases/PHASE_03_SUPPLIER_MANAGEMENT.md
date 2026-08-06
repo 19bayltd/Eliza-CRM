@@ -1,9 +1,8 @@
 # Phase 03 — Supplier Management
 
-> **Status: Scoped draft.** This phase is not active. The draft records the
-> approved scope boundary; the full specification (detailed schema,
-> permissions, audit events, validation, tests) is completed and
-> owner-reviewed at phase activation, before implementation.
+> **Status: Implemented — pending live verification.** Activated by owner
+> instruction 2026-08-06 ("move to phase 3"). Defaults chosen at
+> activation are recorded as D-019 and may be overridden by the owner.
 
 ## Objective
 
@@ -13,127 +12,176 @@ Manage China and Bangladesh suppliers, supplier contacts, private supplier docum
 
 All supplier relationships and quotations are recorded, comparable, and confidential costs are restricted and audited.
 
-## Included Scope
+## Included Scope (delivered)
 
-- Supplier records (China, Bangladesh), contacts, capabilities
-- Supplier quotations linked to products/variants (Confidential)
-- Supplier private documents (`supplier-documents` bucket)
-- Quotation comparison views
+- Supplier directory per company: code, name, ISO country, capabilities,
+  address, notes; archive-only (refused while active quotations exist)
+- Supplier contacts: name, role, phone, WeChat/WhatsApp, email;
+  archive-only with reasons
+- Quotations linked to products/variants: MOQ, lead time, valid-until,
+  terms — with **prices split into an RLS-walled costs table**
+  (`numeric(14,4)` unit price, ISO currency, `numeric(16,6)` exchange
+  rate captured at quote time); price reads audited; price values never
+  in audit payloads; creating a quotation requires quotation.manage AND
+  cost.view
+- Quotation comparison view: all quotes for a product side by side,
+  quoted price + normalized price in the company base currency
+- Private supplier documents: `supplier-documents` bucket (confidential,
+  25 MB, pdf/image/office), registry rows, per-download audit, soft
+  delete
+- 7 new permissions + default role mappings (manager sees quotations
+  without prices; employee directory-only; viewer none) — matrix in
+  `modules/suppliers/SUPPLIERS_PERMISSION_MATRIX.md`
+- UI: /suppliers (per-company directory + create), /suppliers/[id]
+  (edit, contacts, quotations with `•••` price masking, documents),
+  /suppliers/compare — permission-aware throughout; main-nav entry
+- Module documentation set
 
-## Excluded Scope
+## Excluded Scope (respected)
 
-- Purchase requests/orders and samples (Phase 04)
-- Supplier payments (Phase 12)
-- Everything belonging to other phases (see `MODULE_ROADMAP.md`)
+Purchase requests/orders and samples (Phase 04), supplier payments
+(Phase 12), supplier portals/external access.
 
 ## Dependencies
 
-Phases 01–02 complete.
+Phases 01–02 complete (quotations attach to catalog products).
 
 ## Database Changes
 
-Supplier, contact, quotation tables; quotation currency + exchange-rate fields (numeric).
-All changes follow `DATABASE_ARCHITECTURE.md` (migrations, FKs,
-constraints, timestamptz, numeric money, RLS, no destructive ops without
-approval). Detailed DDL is designed at activation.
+Migrations `20260806120001_supplier_management` (5 tables, 9 indexes,
+4 triggers, client-write revocation, permission-gated RLS) and
+`20260806120002_supplier_reference_data` (bucket, 7 permissions, role
+mappings). Applied to staging 2026-08-06. Production untouched.
 
 ## Permission Requirements
 
-Supplier manage, quotation view (cost-restricted), document upload/download permissions.
-Full 12-point server-side check per `ROLE_PERMISSION_MATRIX.md` §1; a
-module permission matrix is authored at activation.
+`suppliers.view/manage`, `suppliers.quotation.view/cost.view/manage`,
+`suppliers.document.download/manage` — full server-side checks via the
+Phase 01 evaluator; RLS parity per table (suppliers by view; quotations
+by quotation.view; costs by cost.view; documents by document.download).
 
 ## Audit Requirements
 
-Supplier lifecycle, quotation created/updated, supplier-document access.
-Events follow `AUDIT_EVENT_CATALOG.md` conventions and are registered
-there at activation.
+11 event types in `modules/suppliers/SUPPLIERS_AUDIT_EVENTS.md`,
+including `quotation.cost_viewed` on every price exposure; plus storage
+events per document object.
 
 ## File-Storage Requirements
 
-Bucket: `supplier-documents` (Confidential; access logged).
-
-## Backend Requirements
-
-Server-side services per `ARCHITECTURE.md` §3; centralized permission,
-audit, and validation services; transaction boundaries per
-`DATABASE_ARCHITECTURE.md` §6. Detailed at activation.
-
-## Frontend Requirements
-
-Interfaces meet `DEVELOPMENT_WORKFLOW.md` §1 step 8 standards (loading/
-empty/error states, validation feedback, permission-aware actions,
-destructive-action confirmation, accessibility, no fake data). Detailed at
-activation.
+`supplier-documents`: private, confidential class, 25 MB cap,
+pdf/image/office allow-list, 300-second signed URLs, per-download audit.
 
 ## Validation Rules
 
-Zod schemas at every boundary; server-side authoritative. Module-specific
-rules detailed at activation.
+Zod everywhere; prices/rates as decimal strings (4/6 dp) — never floats;
+ISO country/currency codes; whole-number MOQ/lead-time; ISO dates;
+cross-company re-validation of every client-supplied ID.
 
 ## Approval Rules
 
-Approval-gated actions for this phase are enumerated at activation per
-`SECURITY_MODEL.md` §6; approval records follow master approval-record
-shape.
+None beyond mandatory reasons on archival (audited). Purchase approvals
+arrive with Phase 04.
 
 ## Error Handling
 
-Explicit typed errors; no silent failures; sensitive-action failures
-audited with result=failure.
+Typed ServiceErrors; duplicate supplier code → conflict; archived
+targets → conflict; cross-company references → invalid_input; quotation
+insert is compensated (metadata row removed) if the cost row fails.
 
 ## Security Requirements
 
-Full `SECURITY_MODEL.md` compliance, including data classification of
-all new entities, RLS scoping, and export controls.
+Prices and documents are Confidential class. The cost table is the
+enforced wall (verified by staging probe: employee sees 0 cost rows);
+deny-all client writes on all 5 tables; no price values in audit
+payloads or error messages.
 
 ## Testing Requirements
 
-`TESTING_STRATEGY.md` §2 case list for every protected operation,
-cross-company isolation coverage for all new tables, and module-specific
-scenarios detailed at activation.
+10 new unit tests (57 total, all passing); staging RLS probe with
+recorded evidence below; live manual script in
+`modules/suppliers/SUPPLIERS_TEST_PLAN.md`.
 
 ## Migration Plan
 
-Per `DEPLOYMENT_AND_ROLLBACK.md`: dev → staging → production, additive
-first, backfills documented and tested.
+Applied dev→staging (files committed). Production only via the
+owner-gated deployment plan.
 
 ## Rollback Plan
 
-Compensating migrations documented with each forward migration; app
-rollback via previous build. Phase-specific steps detailed at activation.
+Drop the 5 tables in dependency order; delete the bucket if empty;
+delete seeded permission/mapping rows by key. App rollback via previous
+Vercel build.
 
 ## Deliverables
 
-Implemented scope, module documentation set (`MODULE_ROADMAP.md`
-requirement), updated cross-cutting docs, verification evidence, phase
-completion report.
+Implemented scope, module documentation set, cross-cutting doc updates
+(permission matrix, audit catalog, storage policy, decision log D-019),
+verification evidence, this report.
 
 ## Completion Criteria
 
-Master completion rule (`docs/README.md` Governing rules; master spec):
-all criteria individually marked Pass/Fail with evidence at completion.
-Criteria are finalized at activation.
+| Criterion | Verdict | Evidence |
+|---|---|---|
+| Approved scope implemented | Pass | This document + code tree |
+| Excluded scope untouched | Pass | No PO/sample/payment tables or routes |
+| Migrations pass against staging | Pass | 2/2 applied 2026-08-06 |
+| Permissions enforced server-side | Pass | Every service path behind requirePermission; company re-validation on all client IDs |
+| Price wall enforced at DB boundary | Pass | Probe: employee sees supplier (1) but 0 quotations / 0 cost rows / 0 documents; insert denied 42501 |
+| Quotation prices absent from audit | Pass | `quotation.created` payload carries currency/terms only; cost reads audited value-free |
+| Unit tests pass | Pass | 57/57 (10 new) |
+| Lint / typecheck / build pass | Pass | 0 errors; 3 new routes present |
+| Advisors reviewed | Pass | No new findings after 5-table DDL |
+| Documentation updated | Pass | Module set + cross-cutting docs + D-019 |
+| Production untouched | Pass | No operations against pbyjyamqmbotixahkknu |
+| Live manual verification (owner) | **Pending** | Script in SUPPLIERS_TEST_PLAN.md |
 
 ## Open Questions
 
-To be gathered at activation review with the owner.
+Owner may override D-019 defaults (code convention, country list in the
+create form, manager price access, document size/type limits).
 
 ## Risks
 
-Registered/reviewed in `RISK_REGISTER.md` at activation.
+Comparison normalization uses the rate captured at quote time — this is
+by design (historical accuracy) but means stale quotes show stale
+conversions; validity dates are displayed to compensate.
 
 ## Implementation Checklist
 
-- [ ] Activation approved by owner in `IMPLEMENTATION_STATUS.md`
-- [ ] Full specification completed and owner-reviewed
-- [ ] Gap analysis and work-package plan produced
-- [ ] Implementation, tests, verification, documentation, completion report
+- [x] Activation approved by owner ("move to phase 3", 2026-08-06)
+- [x] Full specification (module docs) authored
+- [x] Migrations + reference data applied to staging
+- [x] Services, actions, UI implemented
+- [x] Unit tests + staging RLS verification
+- [ ] Live manual verification (owner)
+- [ ] Completion declaration
 
 ## Verification Evidence
 
-None — phase not started.
+2026-08-06, staging project `yhrdyyvayistqqwxawqr`:
+
+```
+lint:        0 errors, 0 warnings
+typecheck:   clean (strict)
+unit tests:  57 passed / 57 (6 files; 10 new supplier tests)
+build:       production build OK — /suppliers, /suppliers/[id],
+             /suppliers/compare routes present
+migrations:  20260806120001, 20260806120002 applied
+advisors:    no new findings after 5-table DDL
+
+RLS probe (fixtures inserted + probed + rolled back; residue 0):
+  administrator: suppliers 1, quotations 1, costs 1
+  employee (suppliers.view only):
+    suppliers visible: 1        quotations: 0
+    supplier_quotation_costs: 0 (PRICE WALL)
+    supplier_documents: 0
+    INSERT suppliers: denied SQLSTATE 42501
+production:  untouched
+```
 
 ## Final Phase Verdict
 
-Not started.
+**Implemented — pending live verification.** All code-, schema-,
+security-, and test-level criteria pass with evidence. Remaining:
+owner-side live manual script (SUPPLIERS_TEST_PLAN.md) against the
+deployed app, then the completion declaration.

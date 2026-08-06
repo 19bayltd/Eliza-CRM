@@ -41,6 +41,23 @@ const BUCKETS = {
     uploadPermission: PERMISSIONS.productsIntelligenceView,
     downloadPermission: PERMISSIONS.productsIntelligenceView,
   },
+  // Phase 03: private supplier documents (contracts, price lists,
+  // certificates); every download audited by this service.
+  "supplier-documents": {
+    classification: "confidential",
+    maxSizeBytes: 25 * 1024 * 1024,
+    allowedMimePrefixes: [
+      "application/pdf",
+      "image/",
+      "text/csv",
+      "application/vnd.openxmlformats-officedocument",
+      "application/msword",
+      "application/vnd.ms-excel",
+    ],
+    signedUrlSeconds: 300,
+    uploadPermission: PERMISSIONS.suppliersDocumentManage,
+    downloadPermission: PERMISSIONS.suppliersDocumentDownload,
+  },
 } as const;
 
 type BucketId = keyof typeof BUCKETS;

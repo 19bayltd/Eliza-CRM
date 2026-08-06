@@ -48,4 +48,7 @@ server storage service, audit wiring, and `system-exports`. Phase 02
 (2026-08-05) provisioned `public-product-images` and
 `confidential-product-images` (both private; per-bucket
 upload/download permissions in `server/storage`; image/*, 10 MB, 300 s
-signed URLs). Remaining buckets arrive with their modules.
+signed URLs). Phase 03 (2026-08-06) provisioned `supplier-documents`
+(confidential; 25 MB; pdf/image/office; upload gated by
+`suppliers.document.manage`, download by `suppliers.document.download`,
+every download audited). Remaining buckets arrive with their modules.

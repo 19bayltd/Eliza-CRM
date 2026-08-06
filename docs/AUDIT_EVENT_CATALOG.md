@@ -87,6 +87,18 @@ functionality). Update events for org children arrive with edit UIs.
 
 Full trigger/payload notes: `modules/products/PRODUCTS_AUDIT_EVENTS.md`.
 
+### Phase 03 — IMPLEMENTED (suppliers module, 2026-08-06)
+
+| Event | Trigger |
+|---|---|
+| `suppliers.supplier.created` / `.updated` / `.archived` | Supplier lifecycle (archive carries reason) |
+| `suppliers.supplier.contact_added` / `.contact_archived` | Contact lifecycle |
+| `suppliers.quotation.created` / `.archived` | Quotation lifecycle — payload NEVER contains prices |
+| `suppliers.quotation.cost_viewed` | Any render exposing prices (non-critical; value-free) |
+| `suppliers.supplier.document_uploaded` / `.document_removed` | Document registry (object ops emit `storage.file.*`, incl. every download) |
+
+Full trigger/payload notes: `modules/suppliers/SUPPLIERS_AUDIT_EVENTS.md`.
+
 ### Later phases
 
 Registered in each module's `*_AUDIT_EVENTS.md` and appended here when the

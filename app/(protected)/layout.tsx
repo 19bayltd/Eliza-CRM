@@ -46,6 +46,9 @@ export default async function ProtectedLayout({
   const showProducts = ctx.roleGrants.some((g) =>
     g.permissions.includes(PERMISSIONS.productsView),
   );
+  const showSuppliers = ctx.roleGrants.some((g) =>
+    g.permissions.includes(PERMISSIONS.suppliersView),
+  );
 
   return (
     <div>
@@ -54,6 +57,7 @@ export default async function ProtectedLayout({
         <nav aria-label="Main navigation">
           <Link href="/dashboard">Dashboard</Link>
           {showProducts && <Link href="/products">Products</Link>}
+          {showSuppliers && <Link href="/suppliers">Suppliers</Link>}
           {showAdmin && <Link href="/admin/organization">Administration</Link>}
         </nav>
         <span className="spacer" />
