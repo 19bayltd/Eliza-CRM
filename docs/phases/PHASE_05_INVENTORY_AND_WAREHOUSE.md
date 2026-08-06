@@ -1,9 +1,9 @@
 # Phase 05 — Inventory and Warehouse
 
-> **Status: Scoped draft.** This phase is not active. The draft records the
-> approved scope boundary; the full specification (detailed schema,
-> permissions, audit events, validation, tests) is completed and
-> owner-reviewed at phase activation, before implementation.
+> **Status: Implemented — pending live verification.** Activated by owner
+> instruction 2026-08-06 ("move to phase 5"). Design decisions are
+> recorded as D-024 and may be overridden by the owner. Production
+> deployment remains unauthorized.
 
 ## Objective
 
@@ -13,127 +13,275 @@ Implement the immutable stock ledger, warehouse operations, transfers, adjustmen
 
 Stock balances are trustworthy: every movement is a ledger transaction; negative stock is blocked; adjustments require approval.
 
-## Included Scope
+## Included Scope (delivered)
 
-- Immutable stock ledger (all transaction types in `DATABASE_ARCHITECTURE.md` §5)
-- Balances derived/maintained from ledger only
-- Warehouse locations, transfers (out/in), damage, adjustments (approval-gated)
-- Stock counts and corrections
-- Negative-stock block with approval-gated override rule
+- **Append-only `stock_ledger`** — UPDATE and DELETE raise in a trigger
+  *and* are revoked from client roles. There is no interface, service or
+  script that can alter history; corrections are compensating entries.
+- **Derived `stock_balances`** — written by exactly one thing, the ledger
+  trigger, now enforced by a guard trigger that refuses every other
+  write. The balance for any (warehouse, product, variant) is the sum of
+  its ledger entries, and a probe asserts it.
+- **Negative-stock block in the database**, not in a service, so it holds
+  for every future phase's postings. The override is a separately-held
+  permission, scoped to one transaction, and audits its own use.
+- **All twelve transaction types** from `DATABASE_ARCHITECTURE.md` §5
+  exist now, each with a sign constraint; types no implemented path posts
+  are refused by validation so a later phase's flow cannot start early.
+- **Two-step transfers** (`TRF-YYYY-####`): dispatch posts `transfer_out`,
+  receipt posts `transfer_in`, and goods in transit belong to neither
+  warehouse — which the page says out loud.
+- **Approval-gated adjustments** (`ADJ-YYYY-####`) reusing the Phase 04
+  engine, with approve-and-post as one guarded step and self-approval
+  refused server-side.
+- **Stock counts** (`CNT-YYYY-####`) that snapshot system quantities at
+  open and post only non-zero variances.
+- **Phase 04 receiving wired into the ledger**: accepted quantities post
+  inside the receipt transaction, so a GRN and its stock movement cannot
+  come apart. Damaged, missing and extra deliberately do not become stock.
+- Warehouse locations, an evidence-document bucket, 11 permissions with
+  role defaults (**Viewer gains read access — the first module where that
+  role is granted anything**), module documentation set.
 
-## Excluded Scope
+## Excluded Scope (respected)
 
-- POS sales postings (Phase 07), order reservations (Phase 09) — ledger transaction types are designed now, consumed later
-- Everything belonging to other phases (see `MODULE_ROADMAP.md`)
+POS sale postings (Phase 07) and order reservations (Phase 09) — their
+ledger types are designed and constrained now, consumed later. No
+costing, valuation or stock-value reporting (Phase 12/13).
 
 ## Dependencies
 
-Phases 01–04 complete.
+Phases 01–04 complete. **Inventory needs at least one active warehouse
+per company**; staging had none, so warehouses must be created in
+Administration → Organization before stock can be recorded. Purchase
+orders now carry a destination warehouse.
 
 ## Database Changes
 
-Ledger table (append-only), balance views/materializations, location tables.
-All changes follow `DATABASE_ARCHITECTURE.md` (migrations, FKs,
-constraints, timestamptz, numeric money, RLS, no destructive ops without
-approval). Detailed DDL is designed at activation.
+Migrations `20260806150001` (warehouses become a company-integrity
+parent), `150002` (10 tables), `150003` (immutability, derived balances,
+RLS), `150004` (nullable-variant balance key), `150005` (bucket, 11
+permissions, role mappings, adjustment approval rule), `150006` (batch
+posting + the receiving hook + `purchase_orders.warehouse_id`), `150007`
+(TRF/ADJ/CNT numbering), `150008` (balance write guard + override-flag
+cleanup), `150009` (pinned search_path on both guards). Applied to
+staging 2026-08-06. Production untouched.
 
 ## Permission Requirements
 
-View stock, post transaction types, approve adjustments/overrides.
-Full 12-point server-side check per `ROLE_PERMISSION_MATRIX.md` §1; a
-module permission matrix is authored at activation.
+11 `inventory.*` keys enforced server-side, with RLS parity per table.
+Matrix in `modules/inventory/INVENTORY_PERMISSION_MATRIX.md`. Combination
+rules: overriding negative stock requires `negative.override` on top of
+the movement's own permission; approving an adjustment posts it, so those
+are one permission and one step.
 
 ## Audit Requirements
 
-Every ledger-affecting action; adjustment approvals.
-Events follow `AUDIT_EVENT_CATALOG.md` conventions and are registered
-there at activation.
+18 event types in `modules/inventory/INVENTORY_AUDIT_EVENTS.md`. Payloads
+record what moved and why, never a balance snapshot — the ledger already
+answers "what was the balance at time T" exactly, and a copied balance
+would be stale the moment the next entry posts.
 
 ## File-Storage Requirements
 
-Count sheets/evidence files per `FILE_STORAGE_POLICY.md`.
-
-## Backend Requirements
-
-Server-side services per `ARCHITECTURE.md` §3; centralized permission,
-audit, and validation services; transaction boundaries per
-`DATABASE_ARCHITECTURE.md` §6. Detailed at activation.
-
-## Frontend Requirements
-
-Interfaces meet `DEVELOPMENT_WORKFLOW.md` §1 step 8 standards (loading/
-empty/error states, validation feedback, permission-aware actions,
-destructive-action confirmation, accessibility, no fake data). Detailed at
-activation.
+`stock-documents`: private, Internal, 15 MB, image/pdf/csv, 300-second
+signed URLs, per-download audit.
 
 ## Validation Rules
 
-Zod schemas at every boundary; server-side authoritative. Module-specific
-rules detailed at activation.
+Zod at every boundary; quantities whole and bounded; magnitude-plus-type
+rather than signed input for manual movements, so damage cannot be
+recorded as an increase; signed deltas for adjustments, never zero;
+transaction type checked against the implemented set; every
+client-supplied id re-validated against the acting company.
 
 ## Approval Rules
 
-Approval-gated actions for this phase are enumerated at activation per
-`SECURITY_MODEL.md` §6; approval records follow master approval-record
-shape.
+Adjustments only. Seeded tier per company: any adjustment requires
+`inventory.adjustment.approve`. Self-approval refused and audited.
+Approval posts the ledger entries in the same call.
 
 ## Error Handling
 
-Explicit typed errors; no silent failures; sensitive-action failures
-audited with result=failure.
+Typed ServiceErrors. The database's negative-stock message (naming the
+product and the balance it would reach) is surfaced verbatim because it
+contains no confidential data; wrong status → conflict; cross-company
+reference → invalid_input; a failed posting reverts the status change
+that preceded it, so a transfer never claims to have been dispatched
+when the stock did not move.
 
 ## Security Requirements
 
-Full `SECURITY_MODEL.md` compliance, including data classification of
-all new entities, RLS scoping, and export controls.
+Stock data is Internal. Client writes revoked on all 10 tables; the
+ledger and balances additionally protected by triggers; both SECURITY
+DEFINER functions execute only as `service_role`; every function has a
+pinned `search_path`.
 
 ## Testing Requirements
 
-`TESTING_STRATEGY.md` §2 case list for every protected operation,
-cross-company isolation coverage for all new tables, and module-specific
-scenarios detailed at activation.
+20 new unit tests (107 total, all passing); staging probes recorded
+below; live manual script in `modules/inventory/INVENTORY_TEST_PLAN.md`.
 
 ## Migration Plan
 
-Per `DEPLOYMENT_AND_ROLLBACK.md`: dev → staging → production, additive
-first, backfills documented and tested.
+Applied dev→staging (files committed). Production only via the
+owner-gated deployment plan.
 
 ## Rollback Plan
 
-Compensating migrations documented with each forward migration; app
-rollback via previous build. Phase-specific steps detailed at activation.
+Drop the 10 tables in the dependency order listed in `150002`; drop the
+three guard functions and `post_stock_entries`; restore
+`record_purchase_receipt` from `20260806140005` and drop
+`purchase_orders.warehouse_id`; delete the seeded permission/mapping/rule
+rows by key; delete the bucket if empty. App rollback via the previous
+Vercel build.
 
 ## Deliverables
 
-Implemented scope, module documentation set (`MODULE_ROADMAP.md`
-requirement), updated cross-cutting docs, verification evidence, phase
-completion report.
+Implemented scope, module documentation set, cross-cutting doc updates
+(permission matrix, audit catalog, storage policy, module roadmap, risk
+register, the four audit logs, decision log D-024), verification
+evidence, this report.
 
 ## Completion Criteria
 
-Master completion rule (`docs/README.md` Governing rules; master spec):
-all criteria individually marked Pass/Fail with evidence at completion.
-Criteria are finalized at activation.
+| Criterion | Verdict | Evidence |
+|---|---|---|
+| Approved scope implemented | Pass | This document + code tree |
+| Excluded scope untouched | Pass | No sale/reservation posting path; types exist but are refused by validation |
+| Migrations pass against staging | Pass | 9/9 applied 2026-08-06 |
+| Ledger is append-only | Pass | Probe: UPDATE and DELETE both raise; row unchanged; clients hold no grant |
+| Balances derive from the ledger only | Pass | Probe: direct INSERT and UPDATE refused even as database owner; posting through the ledger still works |
+| Balance ≡ sum(ledger) | Pass | Probe after mixed postings: equal |
+| Negative stock blocked | Pass | Probe: −500 against a balance of 100 raised, and left neither ledger row nor balance change |
+| Override works and is audited | Pass | Probe: same posting succeeded when flagged; `negative_override_used` written with result=failure |
+| Sign matches type | Pass | Probe: `purchase_receipt` with −5 rejected by check constraint; unit tests cover all twelve types |
+| Receiving posts stock atomically | Pass | Probe: 6 accepted + 2 damaged → stock 6; a receipt with a foreign line left 1 receipt and stock unchanged, ledger included |
+| Permissions enforced server-side | Pass | Every service path behind requirePermission; company re-validation on all client ids |
+| Separation of duties on adjustments | Pass | Self-approval refused server-side and audited |
+| Embed hints verified against the database | Pass | All 16 FK hints checked against `pg_constraint` — the failure mode that broke Phases 03 and 04 |
+| Unit tests pass | Pass | 107/107 (20 new) |
+| Lint / typecheck / build pass | Pass | 0 errors, 0 warnings; 8 new routes present |
+| Advisors reviewed | Pass | 2 new WARNs (mutable search_path) found and fixed; remaining are the intentional deny-all INFOs and the owner-action password toggle |
+| Review executed | Pass | Self-review — 3 findings fixed; **not** independent reviewers (see Review Findings) |
+| Documentation updated | Pass | Module set + cross-cutting docs + the four audit logs + D-024 |
+| Production untouched | Pass | No operations against pbyjyamqmbotixahkknu |
+| Live manual verification (owner) | **Pending** | Script in INVENTORY_TEST_PLAN.md; requires a warehouse to exist first |
 
 ## Open Questions
 
-To be gathered at activation review with the owner.
+- **Warehouses must be created before any of this can be used.** Staging
+  has none. This is Phase 01 functionality (Administration →
+  Organization) and deliberately not seeded by implementation.
+- Should Viewer really see stock? D-024 says yes (quantities are
+  Internal); the owner may narrow it.
+- Should a dispatched transfer be cancellable? Currently no — it must be
+  received, even at zero, so the stock that left is accounted for.
 
 ## Risks
 
-Registered/reviewed in `RISK_REGISTER.md` at activation.
+Registered as R-017 and R-018 in `RISK_REGISTER.md`: stock is not yet
+valued (no costing until Phase 12, so "how much is this stock worth" has
+no answer), and counts do not freeze movement, so a busy warehouse can
+produce a variance that reflects concurrent activity rather than error.
 
 ## Implementation Checklist
 
-- [ ] Activation approved by owner in `IMPLEMENTATION_STATUS.md`
-- [ ] Full specification completed and owner-reviewed
-- [ ] Gap analysis and work-package plan produced
-- [ ] Implementation, tests, verification, documentation, completion report
+- [x] Activation approved by owner ("move to phase 5", 2026-08-06)
+- [x] Full specification (module docs) authored before implementation
+- [x] Migrations + reference data applied to staging
+- [x] Services, actions, UI implemented
+- [x] Phase 04 receiving wired into the ledger
+- [x] Unit tests + staging probes
+- [x] Cross-cutting docs including the four audit logs
+- [ ] Live manual verification (owner)
+- [ ] Completion declaration
 
 ## Verification Evidence
 
-None — phase not started.
+2026-08-06, staging project `yhrdyyvayistqqwxawqr`:
+
+```
+lint:        0 errors, 0 warnings
+typecheck:   clean (strict)
+unit tests:  107 passed / 107 (9 files; 20 new inventory tests)
+build:       production build OK — /inventory, /inventory/ledger,
+             /inventory/transfers(+[id]), /inventory/adjustments(+[id]),
+             /inventory/counts(+[id]) present
+migrations:  20260806150001-150009 applied
+advisors:    2 new WARNs (mutable search_path on both guard functions)
+             found and fixed; re-run clean apart from the 5 intentional
+             deny-all INFOs and the owner-action leaked-password WARN
+
+Staging probes (fixtures created, probed, removed; residue 0):
+  immutability:   UPDATE stock_ledger -> raised; DELETE -> raised
+  balance apply:  +100 opening stock -> balance 100
+  negative block: -500 damage -> raised; balance still 100 afterwards
+  override:       same posting with the flag -> balance -50, allowed once
+  reconciliation: balance == sum(ledger) after the mixed sequence
+  sign guard:     purchase_receipt with -5 -> check constraint violation
+  derived-only:   direct UPDATE and INSERT on stock_balances -> refused,
+                  while posting through the ledger still succeeds
+  override reset: a batch that failed mid-way left the override cleared
+  receipt hook:   6 accepted + 2 damaged -> stock 6 (damaged excluded);
+                  a receipt with a foreign 2nd line rolled back entirely,
+                  leaving stock and receipt count unchanged
+  fk hints:       all 16 embed hints verified to exist in pg_constraint
+production:       untouched
+```
+
+## Review Findings (self-review, 2026-08-06)
+
+**Process note:** as in Phase 04, this phase was reviewed by the author
+plus the Supabase advisors, not by independent adversarial reviewers.
+That remains weaker evidence than Phases 02–03, and the recommendation
+to run an independent pass before production now covers Phases 04 and 05
+(risk R-015).
+
+1. **A design flaw caught before any code shipped.** The first probe
+   failed to insert a balance at all: `stock_balances` used a primary key
+   containing `variant_id`, which a primary key forces NOT NULL — so
+   every product without variants would have been impossible to stock.
+   Fixed with a surrogate key plus a unique index using
+   `NULLS NOT DISTINCT`. Worth noting because probing the schema *before*
+   building on it is what made this cheap.
+2. **The documented rule that balances are derived was unenforced.**
+   `app.stock_balances_are_derived()` was written and never attached to a
+   trigger, so the service role could have written balances directly and
+   desynchronised them from the ledger with nothing to stop it. Now a
+   guard trigger refuses every write except the ledger trigger's own,
+   which signals itself with a transaction-local flag. Probe confirms a
+   direct UPDATE is refused even as the database owner.
+3. **The negative-stock override could outlive its failure.** If a ledger
+   insert raised mid-batch, `post_stock_entries` returned without
+   clearing the override flag. Each RPC is its own transaction so nothing
+   could actually exploit it, but a permission flag should not survive the
+   error that interrupted it; it is now cleared in an exception handler.
+4. **Advisors: mutable `search_path`** on both guard functions — fixed.
+
+Accepted risks (recorded, not fixed):
+
+- **Existence oracle via fetch-before-authorize**, systemic across
+  Phases 01–05.
+- **No independent adversarial review** for Phases 04–05.
+- **Counts do not freeze stock.** Movements during a count land in the
+  ledger and the variance is measured against the opening snapshot. This
+  is deliberate — freezing a warehouse is worse — but a count run during
+  heavy activity will show variances that are really timing.
 
 ## Final Phase Verdict
 
-Not started.
+**Implemented — pending live verification.** Every code-, schema-,
+security- and test-level criterion passes with evidence: 107 unit tests,
+9 migrations, and staging probes covering immutability, derivation,
+negative stock, the override, sign constraints, atomic receipt posting
+and reconciliation.
+
+The phase's central claim — that a balance cannot be anything other than
+the sum of its history — is enforced in three independent places: the
+ledger cannot be edited, the balance table cannot be written, and the
+negative floor sits in the trigger rather than in any service. Each is
+demonstrated by a probe that fails loudly if the rule stops holding.
+
+Remaining: warehouses must exist before the owner-side script can run,
+then live manual verification and the completion declaration.

@@ -11,7 +11,7 @@ as foundational infrastructure.
 | 02 | Product master | `products/` | Complete in Staging (production gated) |
 | 03 | Supplier management (China, Bangladesh, quotations) | `suppliers/` | Complete in Staging (production gated) |
 | 04 | Purchasing and samples | `purchasing/` | Complete in Staging (production gated) |
-| 05 | Inventory and warehouse | `inventory/` | Not started |
+| 05 | Inventory and warehouse | `inventory/` | Implemented on staging (owner verification pending) |
 | 06 | Barcode management | `barcode/` | Not started |
 | 07 | POS | `pos/` | Not started |
 | 08 | CRM and customer service | `crm/` | Not started |

@@ -58,3 +58,7 @@ Phase 04 adds two buckets: `purchase-documents` (private, Confidential,
 (private, Internal, 10 MB, images — photos taken when a sample arrives).
 Both use 300-second signed URLs and audit every download; removal is
 registry-first with restore-on-failure.
+
+Phase 05 adds `stock-documents` (private, Internal, 15 MB, image/pdf/csv)
+for count sheets and adjustment evidence, with 300-second signed URLs and
+per-download audit.

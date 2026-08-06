@@ -2,44 +2,36 @@
 
 ## Current Phase
 
-Phase 04 — Purchasing and Samples: **Complete in Staging** 2026-08-06
-(D-021 activation, D-023 completion). No phase is active; Phase 05
-requires explicit owner authorization.
+Phase 05 — Inventory and Warehouse (activated by owner instruction
+2026-08-06, D-024): **implemented, pending owner live verification**.
+Phase 04 closed **Complete in Staging** the same day (D-021 activation,
+D-023 completion).
 
 ## Current Status
 
-**Phase 04 Complete in Staging (2026-08-06)** — see Work in Progress for
-the detail. Phase 03 closed the same day: supplier directory,
-contacts, confidential quotations (prices RLS-walled behind a separate
-cost permission, reads audited, values never in audit payloads),
-currency-normalized comparison view, and private supplier documents are
-built, applied to staging, unit-tested (64/64), RLS-probed (price wall
-verified: employee sees suppliers but zero quotations/costs/documents;
-client writes denied), advisor-checked, adversarially reviewed (12
-findings fixed, 3 accepted risks recorded), deployed via `main`, and
-**live-verified by the owner in the browser — 9/9 checks, each
-confirmed against the database**. Highlights: Manager sees `•••` with
-no `cost_viewed` events raised on their behalf; Employee sees no
-quotations section at all; the full document lifecycle leaves zero
-storage objects; a scan of the entire audit log for price values
-returns 0 rows. Defaults recorded as D-019.
+**Phase 05 implemented — pending owner live verification** (see Work in
+Progress). The stock ledger is append-only and its balances are derived
+from it, both enforced by database triggers rather than by convention;
+Phase 04 receiving now posts accepted quantities into the ledger inside
+the receipt transaction. Defaults recorded as D-024/D-025.
 
-Phases 00–03 are **Complete in Staging** with all criteria
-evidence-backed (Phases 02 and 03 fully live-verified by owner browser
-testing 2026-08-05/06). Production deployment is NOT authorized. Phase 05
+Phases 00–04 are **Complete in Staging** with all criteria
+evidence-backed (Phases 02, 03 and 04 live-verified by owner browser
+testing 2026-08-05/06). Production deployment is NOT authorized. Phase 06
 must NOT begin without explicit owner authorization.
 
-## Approved Scope (Phase 04)
+## Approved Scope (Phase 05)
 
-Purchase requests and lines, a configurable approval engine (thresholds
-as data) with approval records, purchase orders with confidential line
-costs, atomic purchase receiving, sample requests and evaluation, 12 new
-permissions with default role mappings, two storage buckets, module
-documentation, tests.
+An append-only stock ledger with derived balances, a database-level
+negative-stock block with an audited override, warehouse locations,
+two-step transfers, approval-gated adjustments, stock counts, the wiring
+that makes Phase 04 receiving post stock atomically, 11 new permissions
+with default role mappings, one storage bucket, module documentation,
+tests.
 
 ## Excluded From Current Work
 
-Inventory (05), barcodes (06), POS, CRM,
+Barcodes (06), POS, CRM,
 orders, HR, finance, reporting, dashboards, alerts, AI. Supplier
 payments (12), supplier portals.
 
@@ -109,18 +101,45 @@ Phase 04 (2026-08-06):
   security, release — which had gone unupdated since Phase 01 and were
   backfilled for Phases 02–04 on 2026-08-06
 
+Phase 05 (2026-08-06):
+
+- Migrations `20260806150001`–`150009`: warehouses become a
+  company-integrity parent; 10 inventory tables; ledger immutability and
+  derived balances; nullable-variant balance key; reference data; batch
+  posting plus the Phase 04 receipt hook and `purchase_orders.warehouse_id`;
+  TRF/ADJ/CNT numbering; the balance write guard; pinned search_paths
+- Services: balances and ledger history, manual movements, warehouse
+  locations, two-step transfers, approval-gated adjustments reusing the
+  Phase 04 engine, stock counts with snapshot-and-variance
+- UI: /inventory, /inventory/ledger, /inventory/transfers(+[id]),
+  /inventory/adjustments(+[id]), /inventory/counts(+[id]) + nav entry
+- 20 inventory unit tests (107 total green); staging probes covering
+  immutability, derivation, the negative floor, the override, sign
+  constraints, atomic receipt posting and reconciliation
+- 4 self-review/advisor findings fixed; all 16 embed hints verified
+  against `pg_constraint`
+- Module documentation set + cross-cutting docs + the four audit logs +
+  D-024, R-017/R-018
+
 ## Work in Progress
 
-None. Phase 05 (Inventory and Warehouse) awaits explicit owner
-activation.
+**Phase 05 implemented — pending owner live verification.** The script is
+in `modules/inventory/INVENTORY_TEST_PLAN.md` and is **blocked until at
+least one warehouse exists**: staging currently has none, and warehouse
+creation is Phase 01 functionality (Administration → Organization) that
+implementation deliberately does not seed. Note this phase again had a
+**self-review** rather than independent adversarial reviewers.
 
 ## Blocked Work
 
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md` (now would include
   Phase 02 + 03 + 04 migrations)
-- Independent adversarial review of the Phase 04 diff — recommended
-  before that phase reaches production
+- Independent adversarial review of the Phase 04 and Phase 05 diffs —
+  recommended before either reaches production
+- **No warehouses exist in staging**, so inventory cannot be exercised
+  until the owner creates at least one per company in Administration →
+  Organization
 
 ## Post-Completion Follow-ups
 
@@ -148,11 +167,15 @@ activation.
   which was chosen without business input and is not currency-adjusted
   across companies with different base currencies
 - Owner approval to execute the production deployment plan
-- Phase 05 activation (do not start without it)
+- Phase 06 activation (do not start without it)
+- Whether Viewer should see stock quantities (D-024 says yes) and whether
+  a dispatched transfer should be cancellable (currently no)
 
 ## Test Status
 
-Unit 87/87 pass (8 files; 21 Phase 04 purchasing tests plus a guard that fails the build on any PostgREST embed missing its foreign key). Integration
+Unit 107/107 pass (9 files; 20 Phase 05 inventory tests, 21 Phase 04
+purchasing tests, plus a guard that fails the build on any PostgREST
+embed missing its foreign key). Integration
 suite env-gated. E2E: 5/5 green against the live deployment (Phase 01
 scope); Phases 02 and 03 verified by owner browser testing (Phase 03:
 9/9 checks, 2026-08-06). Staging SQL verification: Phase 01/02/03 probes
@@ -197,8 +220,8 @@ recommended before production.
 
 ## Migration Status
 
-Staging: 18/18 applied (7 Phase 01 + 2 Phase 02 + 2 Phase 03 + 2 Phase
-03 hardening + 3 Phase 04 + 2 Phase 04 hardening) + seed.
+Staging: 27/27 applied (7 Phase 01 + 2 Phase 02 + 2+2 Phase 03 + 3+2
+Phase 04 + 9 Phase 05) + seed.
 Production: none (by design; gated plan prepared).
 
 ## Deployment Status
@@ -213,5 +236,5 @@ Production deployment not authorized.
 Phases 00–03: **Complete in Staging**, all criteria evidence-backed
 (D-015/D-018 waivers retired by evidence; Phase 03 carries no waiver —
 every criterion including live manual verification passed on evidence).
-Criteria tables in the respective phase documents. Phase 04:
-**Implemented — pending owner live verification** under D-021.
+Criteria tables in the respective phase documents. Phase 05:
+**Implemented — pending owner live verification** under D-024.

@@ -120,3 +120,14 @@ lines and never a value; `purchase_receipt.discrepancy` records damaged,
 missing and extra quantities because a receiving dispute needs them;
 `purchase_request.self_approval_refused` is written with
 `result=failure` when someone attempts to decide their own request.
+
+## Phase 05 — inventory
+
+18 event types in `modules/inventory/INVENTORY_AUDIT_EVENTS.md`. The
+module-specific convention: payloads record what moved and why, never a
+balance snapshot. The ledger is itself immutable, attributed and timed,
+so duplicating movements into the audit log would create a second
+permanent record that could drift from the first. `stock.negative_override_used`
+and `stock.adjustment_self_approval_refused` are written with
+`result=failure` — the first because the movement succeeded but broke a
+rule, the second because the attempt was refused.

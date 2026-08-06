@@ -105,3 +105,11 @@ Phase 04 (2026-08-06) added the 12-permission `purchasing.*` set
 the two-tier approval permissions (`request.approve` and
 `request.approve.high`) selected by `approval_rules` data rather than
 code; matrix in `modules/purchasing/PURCHASING_PERMISSION_MATRIX.md`.
+
+Phase 05 (2026-08-06) added the 11-permission `inventory.*` set (migration
+20260806150005). Two are deliberately narrow: `inventory.adjustment.approve`
+(the only way stock changes by decree) and `inventory.negative.override`
+(the only way past the negative-stock floor), both Administrator/Owner by
+default. This is also the first module where **Viewer** is granted
+anything — stock quantities are Internal, not Confidential. Matrix in
+`modules/inventory/INVENTORY_PERMISSION_MATRIX.md`.
