@@ -236,7 +236,11 @@ Regression found during live verification (2026-08-06, fixed):
     the same page load returned 200. Fixed by naming the intended
     foreign key in all nine affected embeds (supplier quotations,
     quotation/contact archival, supplier documents, variant status,
-    variant attribute values, product images).
+    variant attribute values, product images). Post-fix evidence: the
+    same page load now issues
+    `supplier_quotations?select=*,suppliers!supplier_quotations_supplier_id_fkey!inner(...)`
+    → 200 and `supplier_documents?select=*,file_metadata!supplier_documents_file_id_fkey!inner(...)`
+    → 200; the supplier detail page renders.
 
 Accepted risks (recorded, not fixed):
 
