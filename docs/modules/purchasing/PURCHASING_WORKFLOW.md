@@ -31,6 +31,10 @@ suffices; at or above it, only Administrator/Owner. Approving your own
 request is always refused. Rejection requires a reason. Either way an
 `approval_records` row is written.
 
+An order carries a **destination warehouse**. It is optional while the
+order is a draft — so an order can be raised before the warehouse exists
+— and required to issue, because receiving posts stock into it.
+
 **Order (Administrator).** An approved request becomes a purchase order
 against one supplier. Prices may be pulled from an existing supplier
 quotation — the Phase 03 cost wall still applies, so issuing requires

@@ -134,15 +134,14 @@ export default async function PurchaseOrdersPage() {
                   Deliver to warehouse
                   {warehouses.length === 0 ? (
                     <p className="empty">
-                      This company has no active warehouse. Create one in
-                      Administration → Organization first — receiving posts
-                      stock, so an order must say where the goods land.
+                      No active warehouse in this company yet. You can still
+                      draft the order — set a destination on the order page
+                      before issuing it, because receiving posts stock there.
+                      Warehouses are created in Administration → Organization.
                     </p>
                   ) : (
-                    <select name="warehouseId" required defaultValue="">
-                      <option value="" disabled>
-                        Choose a warehouse
-                      </option>
+                    <select name="warehouseId" defaultValue="">
+                      <option value="">— set later —</option>
                       {warehouses.map((w) => (
                         <option key={w.id} value={w.id}>
                           {w.code} — {w.name}
