@@ -11,7 +11,7 @@ import { ServiceError } from "@/server/errors";
 import { hasPermission, PERMISSIONS } from "@/server/permissions";
 import { listProducts } from "@/server/services/products";
 import {
-  canDecideRequest,
+  decisionBlockReason,
   getRequestDetail,
   resolveApprovalRule,
 } from "@/server/services/purchase-requests";
@@ -49,13 +49,13 @@ export default async function PurchaseRequestPage(props: {
   }
   const { request, lines, currentTotal, approvals } = detail;
 
-  const [companies, canManage, canDecide, rule] = await Promise.all([
+  const [companies, canManage, decisionBlock, rule] = await Promise.all([
     listCompanies(),
     hasPermission({
       permission: PERMISSIONS.purchasingRequestManage,
       companyId: request.company_id,
     }),
-    canDecideRequest(request),
+    decisionBlockReason(request),
     resolveApprovalRule({
       companyId: request.company_id,
       amount: String(request.submitted_total ?? currentTotal),
@@ -71,6 +71,18 @@ export default async function PurchaseRequestPage(props: {
     if (!(err instanceof ServiceError && err.code === "forbidden")) throw err;
   }
   const selectable = products.filter((p) => p.status !== "archived");
+
+  const canDecide = decisionBlock === null;
+  // Two different reasons produce the same empty decision area, and
+  // conflating them tells an approver something untrue about who did what.
+  const blockedBecause =
+    decisionBlock === "self"
+      ? "You submitted this request, so you cannot decide it — the server refuses that regardless of permissions."
+      : decisionBlock === "authority"
+        ? `This amount requires ${rule?.required_permission ?? "a higher approval permission"}, which you do not hold. It is waiting for someone who does.`
+        : decisionBlock === "no_rule"
+          ? "No approval rule covers this amount, so nobody can decide it until one is configured."
+          : null;
 
   const isDraft = request.status === "draft";
   const isSubmitted = request.status === "submitted";
@@ -234,13 +246,10 @@ export default async function PurchaseRequestPage(props: {
         </div>
       )}
 
-      {isSubmitted && !canDecide && (
+      {isSubmitted && blockedBecause && (
         <div className="card">
           <h2 style={{ marginTop: 0 }}>Decision</h2>
-          <p className="empty">
-            Awaiting a decision from someone else — you cannot decide a request
-            you submitted, and the server refuses it regardless of permissions.
-          </p>
+          <p className="empty">{blockedBecause}</p>
         </div>
       )}
 

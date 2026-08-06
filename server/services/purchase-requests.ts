@@ -572,27 +572,38 @@ export async function cancelRequest(input: unknown): Promise<void> {
 }
 
 /**
- * Whether the acting user may decide this request (for UI gating). The
- * server refuses regardless; this exists so the page does not offer a
- * decision box it knows will be rejected — including to the requester,
- * who can never decide their own request.
+ * Why the acting user cannot decide this request, or null if they can.
+ * The server refuses regardless; this exists so the page can both hide a
+ * decision box it knows would be rejected AND say which of the two very
+ * different reasons applies — being the requester is not the same as
+ * lacking the authority for the amount.
  */
-export async function canDecideRequest(
+export type DecisionBlock = "not_submitted" | "self" | "authority" | "no_rule";
+
+export async function decisionBlockReason(
   request: Tables<"purchase_requests">,
-): Promise<boolean> {
-  if (request.status !== "submitted") return false;
+): Promise<DecisionBlock | null> {
+  if (request.status !== "submitted") return "not_submitted";
   const ctx = await getAccessContext();
   const requester = request.submitted_by ?? request.created_by;
-  if (requester && requester === ctx.userId) return false;
+  if (requester && requester === ctx.userId) return "self";
   const rule = await resolveApprovalRule({
     companyId: request.company_id,
     amount: String(request.submitted_total ?? "0"),
   });
-  if (!rule) return false;
+  if (!rule) return "no_rule";
   const requiredPermission = toPermissionKey(rule.required_permission);
-  if (!requiredPermission) return false;
-  return hasPermission({
+  if (!requiredPermission) return "no_rule";
+  const allowed = await hasPermission({
     permission: requiredPermission,
     companyId: request.company_id,
   });
+  return allowed ? null : "authority";
+}
+
+/** Convenience wrapper for callers that only need the yes/no. */
+export async function canDecideRequest(
+  request: Tables<"purchase_requests">,
+): Promise<boolean> {
+  return (await decisionBlockReason(request)) === null;
 }
