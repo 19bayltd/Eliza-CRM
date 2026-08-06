@@ -21,7 +21,11 @@
 2. Add two contacts; archive one with a reason
 3. Create a quotation (price, currency, rate, MOQ, lead time, validity)
    against a real product; verify audit has `quotation.created` WITHOUT
-   the price
+   the price. To verify the exact-decimal path in the browser, use a
+   price/rate pair where float and decimal disagree — `1.07` at rate
+   `121.50` must normalize to `130.01` (float `toFixed` gives `130.00`).
+   Common pairs such as `1.85` at `121.50` (`224.78`) agree under both
+   implementations and prove only the value, not the code path.
 4. Compare page: quotations for the product with quoted + normalized
    prices
 5. As a Manager-role user: quotation rows visible, prices shown as `•••`,

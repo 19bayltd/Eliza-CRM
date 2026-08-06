@@ -109,7 +109,16 @@ describe("multiplyDecimalStrings (review finding: float misranking)", () => {
     expect(multiplyDecimalStrings("2.675", "1")).toBe("2.68");
   });
   it("computes the canonical example exactly", () => {
+    // Note: this pair does NOT discriminate — (1.85 * 121.5).toFixed(2) is
+    // also "224.78". It guards the value, not the implementation.
     expect(multiplyDecimalStrings("1.85", "121.5")).toBe("224.78");
+  });
+  it("differs from float on a realistic price/rate pair", () => {
+    // 1.07 * 121.50 = 130.005 exactly; the float product falls just below,
+    // so (1.07 * 121.5).toFixed(2) === "130.00". Decimal math must give
+    // 130.01. This is the pair used for live browser verification.
+    expect(multiplyDecimalStrings("1.07", "121.50")).toBe("130.01");
+    expect((1.07 * 121.5).toFixed(2)).toBe("130.00");
   });
   it("keeps tiny positive prices visible instead of showing 0.00", () => {
     expect(multiplyDecimalStrings("0.0001", "1")).toBe("0.0001");

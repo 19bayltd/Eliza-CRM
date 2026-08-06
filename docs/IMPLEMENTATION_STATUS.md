@@ -11,7 +11,7 @@ Phase 03 — Supplier Management (activated by owner instruction
 directory, contacts, confidential quotations (prices RLS-walled behind a
 separate cost permission, reads audited, values never in audit
 payloads), currency-normalized comparison view, and private supplier
-documents are built, applied to staging, unit-tested (57/57), RLS-probed
+documents are built, applied to staging, unit-tested (64/64), RLS-probed
 (price wall verified: employee sees suppliers but zero quotations/costs/
 documents; client writes denied), advisor-checked, and deployed via
 `main`. Remaining before "Phase 03 Complete in Staging": the owner-side
@@ -93,7 +93,7 @@ Phase 03 — awaiting owner live verification (script in
 
 ## Test Status
 
-Unit 57/57 pass (6 files; 10 new Phase 03 supplier tests). Integration
+Unit 64/64 pass (6 files; 17 Phase 03 supplier tests). Integration
 suite env-gated. E2E: 5/5 green against the live deployment (Phase 01
 scope); Phase 02 verified by owner browser testing. Staging SQL
 verification: Phase 01/02/03 probes all passed with recorded evidence

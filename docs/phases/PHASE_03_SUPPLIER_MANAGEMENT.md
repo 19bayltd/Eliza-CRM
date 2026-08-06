@@ -97,7 +97,7 @@ payloads or error messages.
 
 ## Testing Requirements
 
-10 new unit tests (57 total, all passing); staging RLS probe with
+17 supplier unit tests (64 total, all passing); staging RLS probe with
 recorded evidence below; live manual script in
 `modules/suppliers/SUPPLIERS_TEST_PLAN.md`.
 
@@ -128,7 +128,7 @@ verification evidence, this report.
 | Permissions enforced server-side | Pass | Every service path behind requirePermission; company re-validation on all client IDs |
 | Price wall enforced at DB boundary | Pass | Probe: employee sees supplier (1) but 0 quotations / 0 cost rows / 0 documents; insert denied 42501 |
 | Quotation prices absent from audit | Pass | `quotation.created` payload carries currency/terms only; cost reads audited value-free |
-| Unit tests pass | Pass | 57/57 (10 new) |
+| Unit tests pass | Pass | 64/64 (17 supplier tests) |
 | Lint / typecheck / build pass | Pass | 0 errors; 3 new routes present |
 | Advisors reviewed | Pass | No new findings after 5-table DDL |
 | Adversarial review executed | Pass | 3 independent reviewers (authorization/price-leakage, database/RLS, correctness); 10 findings verified and fixed, 2 recorded as accepted risks — see Review Findings |
@@ -164,7 +164,7 @@ conversions; validity dates are displayed to compensate.
 ```
 lint:        0 errors, 0 warnings
 typecheck:   clean (strict)
-unit tests:  57 passed / 57 (6 files; 10 new supplier tests)
+unit tests:  64 passed / 64 (6 files; 17 supplier tests)
 build:       production build OK — /suppliers, /suppliers/[id],
              /suppliers/compare routes present
 migrations:  20260806120001, 20260806120002 applied
@@ -242,6 +242,14 @@ Regression found during live verification (2026-08-06, fixed):
     → 200 and `supplier_documents?select=*,file_metadata!supplier_documents_file_id_fkey!inner(...)`
     → 200; the supplier detail page renders.
 
+12. **Non-discriminating verification example (evidence quality)** — the
+    live script's worked example (`1.85` at rate `121.50` → `224.78`)
+    produces the same result under float and decimal arithmetic, so
+    observing it in the browser confirmed the value but not the code
+    path. The script now specifies a pair where the two disagree
+    (`1.07` at `121.50` → `130.01`; float `toFixed` gives `130.00`), and
+    a unit test asserts both sides of that difference.
+
 Accepted risks (recorded, not fixed):
 
 - **Existence oracle via fetch-before-authorize** (systemic, Phases
@@ -261,6 +269,6 @@ Accepted risks (recorded, not fixed):
 
 **Implemented — pending live verification.** All code-, schema-,
 security-, review-, and test-level criteria pass with evidence
-(63 unit tests after review fixes). Remaining: owner-side live manual
+(64 unit tests after review fixes). Remaining: owner-side live manual
 script (SUPPLIERS_TEST_PLAN.md) against the deployed app, then the
 completion declaration.
