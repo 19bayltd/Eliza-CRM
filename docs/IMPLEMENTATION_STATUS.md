@@ -92,7 +92,7 @@ Phase 03 (2026-08-06):
 requests, a configurable approval engine (thresholds as `approval_rules`
 rows, self-approval refused server-side), purchase orders with an
 RLS-walled cost table, atomic receiving, samples, and purchase documents
-are built, applied to staging, unit-tested (85/85), probed, and deployed
+(order paperwork and sample photos) are built, applied to staging, unit-tested (85/85), probed, and deployed
 via `main`. Remaining before "Phase 04 Complete in Staging": the
 owner-side live script (`modules/purchasing/PURCHASING_TEST_PLAN.md`),
 then the completion declaration. Note: this phase had a **self-review**

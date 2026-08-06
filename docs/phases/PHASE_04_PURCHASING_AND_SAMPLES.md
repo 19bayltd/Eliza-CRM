@@ -261,8 +261,8 @@ remains a recommended follow-up before production.
 4. **Documents were specified but not implemented.** The buckets and
    registry table existed with no service or UI behind them. Added
    `purchase-documents.ts` (upload/list/remove, registry-first removal
-   with restore-on-failure, per-download audit) and wired the order page
-   to it.
+   with restore-on-failure, per-download audit) and wired both the order
+   page (documents) and the samples page (photos) to it.
 
 Accepted risks (recorded, not fixed):
 

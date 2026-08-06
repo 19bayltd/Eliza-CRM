@@ -5,11 +5,14 @@ import {
   dispatchSampleAction,
   evaluateSampleAction,
   receiveSampleAction,
+  removePurchaseDocumentAction,
+  uploadPurchaseDocumentAction,
 } from "@/server/actions/purchasing";
 import { ServiceError } from "@/server/errors";
 import { hasPermission, PERMISSIONS } from "@/server/permissions";
 import { listCompanies } from "@/server/services/organization";
 import { listProducts } from "@/server/services/products";
+import { listPurchaseDocuments } from "@/server/services/purchase-documents";
 import { listSamples } from "@/server/services/samples";
 import { listSuppliers } from "@/server/services/suppliers";
 
@@ -31,13 +34,36 @@ export default async function SamplesPage() {
     });
     if (!canView) continue;
 
-    const [samples, canManage] = await Promise.all([
+    const [samples, canManage, canDocs, canDocManage] = await Promise.all([
       listSamples(company.id),
       hasPermission({
         permission: PERMISSIONS.purchasingSampleManage,
         companyId: company.id,
       }),
+      hasPermission({
+        permission: PERMISSIONS.purchasingDocumentDownload,
+        companyId: company.id,
+      }),
+      hasPermission({
+        permission: PERMISSIONS.purchasingDocumentManage,
+        companyId: company.id,
+      }),
     ]);
+
+    // Photos are listed per sample: each signed URL is minted (and
+    // audited) only for a viewer who holds the download permission.
+    const photosBySample = new Map<
+      string,
+      Awaited<ReturnType<typeof listPurchaseDocuments>>
+    >();
+    if (canDocs) {
+      for (const sample of samples) {
+        photosBySample.set(
+          sample.id,
+          await listPurchaseDocuments("sample_request", sample.id),
+        );
+      }
+    }
 
     let suppliers: Awaited<ReturnType<typeof listSuppliers>> = [];
     let products: Awaited<ReturnType<typeof listProducts>> = [];
@@ -56,6 +82,9 @@ export default async function SamplesPage() {
       company,
       samples,
       canManage,
+      canDocs,
+      canDocManage,
+      photosBySample,
       suppliers: suppliers.filter((s) => s.status === "active"),
       products: products.filter((p) => p.status !== "archived"),
     });
@@ -67,7 +96,16 @@ export default async function SamplesPage() {
 
   return (
     <div>
-      {sections.map(({ company, samples, canManage, suppliers, products }) => (
+      {sections.map(({
+        company,
+        samples,
+        canManage,
+        canDocs,
+        canDocManage,
+        photosBySample,
+        suppliers,
+        products,
+      }) => (
         <div className="card" key={company.id}>
           <h2 style={{ marginTop: 0 }}>
             {company.name} <span className="badge">{company.code}</span>
@@ -87,6 +125,7 @@ export default async function SamplesPage() {
                     <th scope="col">Qty</th>
                     <th scope="col">Status</th>
                     <th scope="col">Outcome</th>
+                    {canDocs && <th scope="col">Photos</th>}
                     {canManage && <th scope="col">Next step</th>}
                   </tr>
                 </thead>
@@ -110,6 +149,58 @@ export default async function SamplesPage() {
                           "—"
                         )}
                       </td>
+                      {canDocs && (
+                        <td>
+                          <details>
+                            <summary>
+                              {(photosBySample.get(s.id) ?? []).length} photo(s)
+                            </summary>
+                            {(photosBySample.get(s.id) ?? []).length === 0 ? (
+                              <p className="empty">No photos yet.</p>
+                            ) : (
+                              <ul>
+                                {(photosBySample.get(s.id) ?? []).map((d) => (
+                                  <li key={d.id}>
+                                    <a href={d.url} target="_blank" rel="noreferrer">
+                                      {d.title ?? d.originalName}
+                                    </a>
+                                    {canDocManage && (
+                                      <ActionForm
+                                        action={removePurchaseDocumentAction}
+                                        submitLabel="Remove"
+                                        buttonClassName="danger"
+                                        confirmMessage="Remove this photo? The file is deleted; the audit trail keeps the record."
+                                        className="row"
+                                      >
+                                        <input type="hidden" name="documentId" value={d.id} />
+                                      </ActionForm>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {canDocManage && s.status !== "cancelled" && (
+                              <ActionForm
+                                action={uploadPurchaseDocumentAction}
+                                submitLabel="Upload photo"
+                                successMessage="Photo uploaded."
+                                className="stack"
+                              >
+                                <input type="hidden" name="entityType" value="sample_request" />
+                                <input type="hidden" name="entityId" value={s.id} />
+                                <label>
+                                  Image (max 10 MB)
+                                  <input type="file" name="file" accept="image/*" required />
+                                </label>
+                                <label>
+                                  Title (optional)
+                                  <input name="title" maxLength={200} placeholder="Front view" />
+                                </label>
+                              </ActionForm>
+                            )}
+                          </details>
+                        </td>
+                      )}
                       {canManage && (
                         <td>
                           {s.status === "requested" && (
