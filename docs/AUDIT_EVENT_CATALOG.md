@@ -110,3 +110,13 @@ Implemented in Phase 01: append-only `audit_log` table (UPDATE/DELETE
 blocked for every role — verified on staging), central `server/audit`
 service with sanitization and critical-write semantics, admin viewer gated
 by `audit.log.view`, and tests.
+
+## Phase 04 — purchasing
+
+21 event types are catalogued in
+`modules/purchasing/PURCHASING_AUDIT_EVENTS.md`. Conventions worth
+repeating here: `purchase_order.cost_viewed` records a count of priced
+lines and never a value; `purchase_receipt.discrepancy` records damaged,
+missing and extra quantities because a receiving dispute needs them;
+`purchase_request.self_approval_refused` is written with
+`result=failure` when someone attempts to decide their own request.

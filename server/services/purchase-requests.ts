@@ -513,6 +513,28 @@ export async function cancelRequest(input: unknown): Promise<void> {
     throw conflict("Only draft or submitted requests can be cancelled");
   }
 
+  // Self-review finding: request.manage is held by every employee, so
+  // without this check one requester could cancel a colleague's request.
+  // Cancellation belongs to the person who raised it or to someone with
+  // approval authority over it.
+  const requester = request.submitted_by ?? request.created_by;
+  if (requester !== ctx.userId) {
+    const rule = await resolveApprovalRule({
+      companyId: request.company_id,
+      amount: String(request.submitted_total ?? "0"),
+    });
+    const approverPermission = rule ? toPermissionKey(rule.required_permission) : null;
+    const mayOverride = approverPermission
+      ? await hasPermission({
+          permission: approverPermission,
+          companyId: request.company_id,
+        })
+      : false;
+    if (!mayOverride) {
+      throw forbidden("Only the requester or an approver can cancel this request");
+    }
+  }
+
   const admin = createAdminSupabase();
   const { data: updated, error } = await admin
     .from("purchase_requests")

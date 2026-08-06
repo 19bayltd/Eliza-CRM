@@ -18,6 +18,10 @@ import {
   recordReceipt,
 } from "@/server/services/purchase-orders";
 import {
+  addPurchaseDocument,
+  removePurchaseDocument,
+} from "@/server/services/purchase-documents";
+import {
   advanceSample,
   cancelSample,
   createSample,
@@ -329,6 +333,52 @@ export async function cancelSampleAction(
       reason: str(formData, "reason"),
     });
     revalidatePath(`${PURCHASING_PATH}/samples`);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+/* ------------------------------- documents ------------------------------ */
+
+export async function uploadPurchaseDocumentAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const entityType = str(formData, "entityType") as
+      | "purchase_order"
+      | "sample_request";
+    const entityId = str(formData, "entityId");
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      return { ok: false, code: "invalid_input", message: "Choose a file" };
+    }
+    await addPurchaseDocument({
+      input: { entityType, entityId, title: opt(formData, "title") },
+      filename: file.name,
+      mimeType: file.type || "application/octet-stream",
+      content: await file.arrayBuffer(),
+    });
+    revalidatePath(
+      entityType === "sample_request"
+        ? `${PURCHASING_PATH}/samples`
+        : `${PURCHASING_PATH}/orders/${entityId}`,
+    );
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+export async function removePurchaseDocumentAction(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await removePurchaseDocument(str(formData, "documentId"));
+    revalidateAll();
+    revalidatePath(`${PURCHASING_PATH}/orders/${str(formData, "orderId")}`);
     return { ok: true, data: undefined };
   } catch (err) {
     return toActionError(err);

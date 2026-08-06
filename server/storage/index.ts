@@ -58,6 +58,31 @@ const BUCKETS = {
     uploadPermission: PERMISSIONS.suppliersDocumentManage,
     downloadPermission: PERMISSIONS.suppliersDocumentDownload,
   },
+  // Phase 04: purchase-order paperwork (proformas, signed POs) and the
+  // photos taken when a sample arrives.
+  "purchase-documents": {
+    classification: "confidential",
+    maxSizeBytes: 25 * 1024 * 1024,
+    allowedMimePrefixes: [
+      "application/pdf",
+      "image/",
+      "text/csv",
+      "application/vnd.openxmlformats-officedocument",
+      "application/msword",
+      "application/vnd.ms-excel",
+    ],
+    signedUrlSeconds: 300,
+    uploadPermission: PERMISSIONS.purchasingDocumentManage,
+    downloadPermission: PERMISSIONS.purchasingDocumentDownload,
+  },
+  "sample-photos": {
+    classification: "internal",
+    maxSizeBytes: 10 * 1024 * 1024,
+    allowedMimePrefixes: ["image/"],
+    signedUrlSeconds: 300,
+    uploadPermission: PERMISSIONS.purchasingDocumentManage,
+    downloadPermission: PERMISSIONS.purchasingDocumentDownload,
+  },
 } as const;
 
 type BucketId = keyof typeof BUCKETS;

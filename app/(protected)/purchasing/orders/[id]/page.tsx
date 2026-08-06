@@ -6,12 +6,15 @@ import {
   cancelOrderAction,
   issueOrderAction,
   recordReceiptAction,
+  removePurchaseDocumentAction,
+  uploadPurchaseDocumentAction,
 } from "@/server/actions/purchasing";
 import { ServiceError } from "@/server/errors";
 import { hasPermission, PERMISSIONS } from "@/server/permissions";
 import { listCompanies } from "@/server/services/organization";
 import { listProducts } from "@/server/services/products";
 import { getOrderDetail } from "@/server/services/purchase-orders";
+import { listPurchaseDocuments } from "@/server/services/purchase-documents";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +37,7 @@ export default async function PurchaseOrderPage(props: {
   }
   const { order, lines, total, receipts, canSeeCosts } = detail;
 
-  const [companies, canManage, canReceive] = await Promise.all([
+  const [companies, canManage, canReceive, canDocs, canDocManage] = await Promise.all([
     listCompanies(),
     hasPermission({
       permission: PERMISSIONS.purchasingOrderManage,
@@ -44,7 +47,19 @@ export default async function PurchaseOrderPage(props: {
       permission: PERMISSIONS.purchasingReceive,
       companyId: order.company_id,
     }),
+    hasPermission({
+      permission: PERMISSIONS.purchasingDocumentDownload,
+      companyId: order.company_id,
+    }),
+    hasPermission({
+      permission: PERMISSIONS.purchasingDocumentManage,
+      companyId: order.company_id,
+    }),
   ]);
+
+  const documents = canDocs
+    ? await listPurchaseDocuments("purchase_order", order.id)
+    : [];
   const baseCurrency =
     companies.find((c) => c.id === order.company_id)?.base_currency ?? "";
 
@@ -290,6 +305,63 @@ export default async function PurchaseOrderPage(props: {
               <input name="note" maxLength={1000} />
             </label>
           </ActionForm>
+        </div>
+      )}
+
+      {canDocs && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Documents</h2>
+          <p className="empty">
+            Confidential — every download is recorded in the audit log.
+          </p>
+          {documents.length === 0 ? (
+            <p className="empty">No documents.</p>
+          ) : (
+            <ul>
+              {documents.map((d) => (
+                <li key={d.id}>
+                  <a href={d.url} target="_blank" rel="noreferrer">
+                    {d.title ?? d.originalName}
+                  </a>{" "}
+                  <span className="empty">({d.originalName})</span>
+                  {canDocManage && (
+                    <ActionForm
+                      action={removePurchaseDocumentAction}
+                      submitLabel="Remove"
+                      buttonClassName="danger"
+                      confirmMessage="Remove this document? The file is deleted; the audit trail keeps the record."
+                      className="row"
+                    >
+                      <input type="hidden" name="documentId" value={d.id} />
+                      <input type="hidden" name="orderId" value={order.id} />
+                    </ActionForm>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {canDocManage && order.status !== "cancelled" && (
+            <details style={{ marginTop: "1rem" }}>
+              <summary>Upload document</summary>
+              <ActionForm
+                action={uploadPurchaseDocumentAction}
+                submitLabel="Upload"
+                successMessage="Document uploaded."
+                className="stack"
+              >
+                <input type="hidden" name="entityType" value="purchase_order" />
+                <input type="hidden" name="entityId" value={order.id} />
+                <label>
+                  File (PDF, image, or office document)
+                  <input type="file" name="file" required />
+                </label>
+                <label>
+                  Title (optional)
+                  <input name="title" maxLength={200} placeholder="Signed PO" />
+                </label>
+              </ActionForm>
+            </details>
+          )}
         </div>
       )}
 

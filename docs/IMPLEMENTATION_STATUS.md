@@ -8,7 +8,9 @@ Phase 04 — Purchasing and Samples (activated by owner instruction
 
 ## Current Status
 
-**Phase 03 Complete in Staging (2026-08-06).** Supplier directory,
+**Phase 04 implemented — pending owner live verification (see Work in
+Progress).** Phase 03 closed Complete in Staging earlier the same day:
+supplier directory,
 contacts, confidential quotations (prices RLS-walled behind a separate
 cost permission, reads audited, values never in audit payloads),
 currency-normalized comparison view, and private supplier documents are
@@ -86,18 +88,25 @@ Phase 03 (2026-08-06):
 
 ## Work in Progress
 
-Phase 04 — Purchasing and Samples. Specification and module docs
-authored; migrations, services, UI, tests and verification to follow.
-Scope: purchase requests with a configurable approval engine, purchase
-orders with a walled cost table, atomic receiving (accepted/damaged/
-missing/extra), and sample request/evaluation. Excluded: inventory
-ledger postings (Phase 05), supplier invoicing and payments (Phase 12).
+**Phase 04 implemented — pending owner live verification.** Purchase
+requests, a configurable approval engine (thresholds as `approval_rules`
+rows, self-approval refused server-side), purchase orders with an
+RLS-walled cost table, atomic receiving, samples, and purchase documents
+are built, applied to staging, unit-tested (85/85), probed, and deployed
+via `main`. Remaining before "Phase 04 Complete in Staging": the
+owner-side live script (`modules/purchasing/PURCHASING_TEST_PLAN.md`),
+then the completion declaration. Note: this phase had a **self-review**
+rather than the three independent adversarial reviewers used in Phases
+02–03; an independent pass is a recommended follow-up. Defaults recorded
+as D-021.
 
 ## Blocked Work
 
 - Production deployment — needs owner approval of
   `releases/PHASE_01_PRODUCTION_DEPLOYMENT_PLAN.md` (now would include
-  Phase 02 + 03 migrations)
+  Phase 02 + 03 + 04 migrations)
+- Independent adversarial review of the Phase 04 diff — recommended
+  before that phase reaches production
 
 ## Post-Completion Follow-ups
 
@@ -120,18 +129,23 @@ ledger postings (Phase 05), supplier invoicing and payments (Phase 12).
 
 ## Open Decisions
 
-- Owner ratification or override of Phase 02/03 defaults (D-017, D-019)
+- Owner ratification or override of Phase 02/03/04 defaults (D-017,
+  D-019, D-021) — in particular the 500,000 high-approval threshold,
+  which was chosen without business input and is not currency-adjusted
+  across companies with different base currencies
 - Owner approval to execute the production deployment plan
 - Phase 05 activation (do not start without it)
 
 ## Test Status
 
-Unit 64/64 pass (6 files; 17 Phase 03 supplier tests). Integration
+Unit 85/85 pass (7 files; 21 Phase 04 purchasing tests). Integration
 suite env-gated. E2E: 5/5 green against the live deployment (Phase 01
 scope); Phases 02 and 03 verified by owner browser testing (Phase 03:
 9/9 checks, 2026-08-06). Staging SQL verification: Phase 01/02/03 probes
 all passed with recorded evidence (phase docs — Phase 03 adds the
-quotation price-wall probe and the live audit-log price scan, 0 rows).
+quotation price-wall probe and the live audit-log price scan, 0 rows;
+Phase 04 adds receiving-atomicity, over-receipt, company-integrity and
+deny-all probes).
 
 ## Security Audit Status
 
@@ -156,10 +170,21 @@ confirmed the price wall behaviourally: the Manager account produced no
 `quotation.cost_viewed` events, and an audit-log scan for price values
 across all modules returned 0 rows.
 
+Phase 04: reviewed by the author (single self-review pass) plus the
+Supabase advisors — NOT by independent adversarial reviewers, unlike
+Phases 02–03. Four findings fixed, the most serious being that both
+SECURITY DEFINER functions were callable by anonymous users through
+/rest/v1/rpc because revoking EXECUTE from anon/authenticated does not
+remove PostgreSQL's default grant to PUBLIC; `record_purchase_receipt`
+would have let an unauthenticated caller write receipts and change order
+status. Fixed by revoking from PUBLIC and granting only to service_role;
+advisors re-run clean. An independent adversarial pass over Phase 04 is
+recommended before production.
+
 ## Migration Status
 
-Staging: 13/13 applied (7 Phase 01 + 2 Phase 02 + 2 Phase 03 + 2 Phase
-03 hardening) + seed.
+Staging: 18/18 applied (7 Phase 01 + 2 Phase 02 + 2 Phase 03 + 2 Phase
+03 hardening + 3 Phase 04 + 2 Phase 04 hardening) + seed.
 Production: none (by design; gated plan prepared).
 
 ## Deployment Status
@@ -174,5 +199,5 @@ Production deployment not authorized.
 Phases 00–03: **Complete in Staging**, all criteria evidence-backed
 (D-015/D-018 waivers retired by evidence; Phase 03 carries no waiver —
 every criterion including live manual verification passed on evidence).
-Criteria tables in the respective phase documents. Phase 04 is in
-progress under D-021.
+Criteria tables in the respective phase documents. Phase 04:
+**Implemented — pending owner live verification** under D-021.

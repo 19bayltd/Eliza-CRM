@@ -155,3 +155,18 @@ $$;
 revoke execute on function
   public.record_purchase_receipt(uuid, uuid, jsonb, text, uuid)
 from anon, authenticated;
+
+-- Revoking from anon/authenticated alone is insufficient: PostgreSQL grants
+-- EXECUTE to PUBLIC by default and those roles inherit it, which left both
+-- functions callable through /rest/v1/rpc by anonymous callers (caught by
+-- the Supabase security advisors, migration 20260806140004). Revoke from
+-- PUBLIC and grant only to service_role — the role the server services use.
+revoke execute on function public.next_document_number(uuid, text)
+  from public, anon, authenticated;
+revoke execute on function
+  public.record_purchase_receipt(uuid, uuid, jsonb, text, uuid)
+  from public, anon, authenticated;
+
+grant execute on function public.next_document_number(uuid, text) to service_role;
+grant execute on function
+  public.record_purchase_receipt(uuid, uuid, jsonb, text, uuid) to service_role;

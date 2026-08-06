@@ -52,3 +52,9 @@ signed URLs). Phase 03 (2026-08-06) provisioned `supplier-documents`
 (confidential; 25 MB; pdf/image/office; upload gated by
 `suppliers.document.manage`, download by `suppliers.document.download`,
 every download audited). Remaining buckets arrive with their modules.
+
+Phase 04 adds two buckets: `purchase-documents` (private, Confidential,
+25 MB, pdf/image/office — purchase-order paperwork) and `sample-photos`
+(private, Internal, 10 MB, images — photos taken when a sample arrives).
+Both use 300-second signed URLs and audit every download; removal is
+registry-first with restore-on-failure.

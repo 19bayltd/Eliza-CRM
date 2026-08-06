@@ -99,3 +99,9 @@ Phase 02 (2026-08-05) added the 8-permission `products.*` set (migration
 Phase 03 (2026-08-06) added the 7-permission `suppliers.*` set (migration
 20260806120002), including the quotation existence/price split; matrix in
 `modules/suppliers/SUPPLIERS_PERMISSION_MATRIX.md`.
+
+Phase 04 (2026-08-06) added the 12-permission `purchasing.*` set
+(migration 20260806140003), including the order existence/price split and
+the two-tier approval permissions (`request.approve` and
+`request.approve.high`) selected by `approval_rules` data rather than
+code; matrix in `modules/purchasing/PURCHASING_PERMISSION_MATRIX.md`.
