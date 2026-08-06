@@ -18,6 +18,12 @@ computed with exact decimal math and frozen onto the request at
 submission — the approval decision must be made against the amount the
 approver actually saw.
 
+A draft is editable by anyone holding `purchasing.request.manage` in the
+same company, not only the person who raised it (D-022) — colleagues
+routinely finish each other's drafts. Editing stops dead at submission,
+and the total is recomputed and shown then, so the requester sees any
+change a colleague made before it is frozen.
+
 **Approve (Manager or Administrator).** The engine reads
 `approval_rules` for the company, picks the highest matching threshold,
 and demands that permission. Below the high threshold a Manager
