@@ -146,7 +146,7 @@ decision log D-016/D-017), verification evidence below, this report.
 | Adversarial review executed | Pass | Review of the full Phase 02 diff (authorization, RLS parity, confidentiality, correctness); 2 defects found and fixed — see Review Findings below |
 | Documentation updated | Pass | Module set + cross-cutting docs + decisions |
 | Production untouched | Pass | Re-verified 2026-08-05: 0 tables, 0 users |
-| Live manual verification (owner) | **Waived by owner (D-018)** | Owner declared completion 2026-08-05 without performing the live script. Staging shows zero products/catalog rows and zero `products` audit events, i.e. the product pages have never been exercised by a human. Script remains in PRODUCTS_TEST_PLAN.md |
+| Live manual verification (owner) | Substantially verified — 3 checks outstanding | Waived at declaration (D-018); owner browser testing 2026-08-05/06 then verified most of the scope with DB corroboration (Live Verification Addendum below). Still untested: variant cascade on product archive, duplicate-attribute-combination refusal, Employee permission boundary |
 | Live e2e against deployment | **Waived by owner (D-018)** | Automated product specs written (`tests/e2e/products.spec.ts`, 5 specs covering catalog → product → duplicate-SKU refusal → variant → intelligence → activate/archive → audit) but never executed against the deployment; the sandbox has no network route to it. One command converts this waiver into evidence |
 
 ## Open Questions
@@ -239,6 +239,43 @@ Note recorded for a later phase: import applies row-by-row without a
 surrounding transaction, by design (per-row failures are recorded rather
 than rolling back the batch); revisit if catalogs outgrow the 2000-row
 limit.
+
+## Live Verification Addendum (2026-08-05 → 2026-08-06)
+
+Owner-operated browser testing against https://eliza-crm.vercel.app,
+every claim corroborated in the staging database and audit log:
+
+- Catalog: units/categories/attributes/values created via UI; a unit
+  archived with reason; invalid codes refused with clear messages
+- Products: created via UI (`product.created` audited); duplicate SKU
+  refused server-side; product edited
+- Variants: created with and without attribute values
+  (`variant.created`, `variant.status_changed` audited)
+- Status lifecycle: draft→active and active→archived with mandatory
+  reasons ("Testing Purpose") recorded in audit
+- Confidential intelligence: panel reads audited
+  (`product.intelligence_viewed` ×13); write proven
+  (`product.intelligence_updated`; target cost stored 145.00 BDT,
+  exact numeric); values absent from audit payloads (field names only)
+- Image upload: `product.image_uploaded` + storage events
+- CSV import, full cycle: validate (6 rows → 3 create / 1 update /
+  2 reject, per-row reasons: unknown category, invalid SKU) → apply
+  (4 applied, 0 failures, 2 skipped) → products present, existing
+  product updated by import; job `applied` with counts
+- Automated: 5/5 Phase 01 e2e specs green against the deployment;
+  product specs partially green (harness iterations recorded in commits)
+
+Defects found by this testing, all fixed and deployed: import issue
+list counted every unapplied row as a problem (847162d→); catalog list
+showed name-then-code against a code-then-name form; subsection forms
+visually attached to the wrong heading; missing draft/archived badge
+styles; unexplained Code/Name semantics (help text added).
+
+Outstanding before the live criterion is fully closed:
+1. Archive a product that HAS variants → variants archive with it
+2. Add a variant duplicating an existing attribute combination → refused
+3. Employee-role user sees no create/edit controls, no Catalog/Import
+   tabs, and no confidential intelligence panel
 
 ## Final Phase Verdict
 
