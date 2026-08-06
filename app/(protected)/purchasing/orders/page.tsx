@@ -6,6 +6,7 @@ import { listCompanies } from "@/server/services/organization";
 import { listOrders } from "@/server/services/purchase-orders";
 import { listRequests } from "@/server/services/purchase-requests";
 import { listSuppliers } from "@/server/services/suppliers";
+import { listWarehouses } from "@/server/services/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +38,13 @@ export default async function PurchaseOrdersPage() {
     ]);
 
     const canCreate = canManage && canCosts;
-    const [suppliers, requests] = canCreate
-      ? await Promise.all([listSuppliers(company.id), listRequests(company.id)])
-      : [[], []];
+    const [suppliers, requests, warehouses] = canCreate
+      ? await Promise.all([
+          listSuppliers(company.id),
+          listRequests(company.id),
+          listWarehouses(company.id),
+        ])
+      : [[], [], []];
 
     sections.push({
       company,
@@ -47,6 +52,7 @@ export default async function PurchaseOrdersPage() {
       canCreate,
       suppliers: suppliers.filter((s) => s.status === "active"),
       approvedRequests: requests.filter((r) => r.status === "approved"),
+      warehouses,
     });
   }
 
@@ -56,7 +62,7 @@ export default async function PurchaseOrdersPage() {
 
   return (
     <div>
-      {sections.map(({ company, orders, canCreate, suppliers, approvedRequests }) => (
+      {sections.map(({ company, orders, canCreate, suppliers, approvedRequests, warehouses }) => (
         <div className="card" key={company.id}>
           <h2 style={{ marginTop: 0 }}>
             {company.name} <span className="badge">{company.code}</span>
@@ -119,6 +125,27 @@ export default async function PurchaseOrdersPage() {
                       {suppliers.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.code} — {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </label>
+                <label>
+                  Deliver to warehouse
+                  {warehouses.length === 0 ? (
+                    <p className="empty">
+                      This company has no active warehouse. Create one in
+                      Administration → Organization first — receiving posts
+                      stock, so an order must say where the goods land.
+                    </p>
+                  ) : (
+                    <select name="warehouseId" required defaultValue="">
+                      <option value="" disabled>
+                        Choose a warehouse
+                      </option>
+                      {warehouses.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.code} — {w.name}
                         </option>
                       ))}
                     </select>

@@ -170,6 +170,9 @@ export const cancelRequestSchema = z.object({
 export const createOrderSchema = z.object({
   companyId: uuidSchema,
   supplierId: uuidSchema,
+  // Phase 05: receiving posts stock, so an order must say where the goods
+  // will land before anyone can receive against it.
+  warehouseId: uuidSchema,
   requestId: uuidSchema.optional().or(z.literal("").transform(() => undefined)),
   currency: currencySchema,
   exchangeRate: exchangeRateSchema,

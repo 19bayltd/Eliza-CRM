@@ -162,6 +162,7 @@ export async function createOrderAction(
     await createOrder({
       companyId: str(formData, "companyId"),
       supplierId: str(formData, "supplierId"),
+      warehouseId: str(formData, "warehouseId"),
       requestId: opt(formData, "requestId"),
       currency: str(formData, "currency"),
       exchangeRate: str(formData, "exchangeRate"),

@@ -226,6 +226,18 @@ export async function createOrder(input: unknown): Promise<string> {
     }
   }
 
+  const { data: warehouse } = await admin
+    .from("warehouses")
+    .select("id, company_id, status")
+    .eq("id", parsed.data.warehouseId)
+    .maybeSingle();
+  if (!warehouse || warehouse.company_id !== parsed.data.companyId) {
+    throw invalidInput("Warehouse does not belong to this company");
+  }
+  if (warehouse.status !== "active") {
+    throw conflict("Archived warehouses cannot receive purchase orders");
+  }
+
   const { data: number, error: numberError } = await admin.rpc("next_document_number", {
     p_company_id: parsed.data.companyId,
     p_doc_type: "PO",
@@ -238,6 +250,7 @@ export async function createOrder(input: unknown): Promise<string> {
       company_id: parsed.data.companyId,
       number,
       supplier_id: supplier.id,
+      warehouse_id: warehouse.id,
       request_id: parsed.data.requestId ?? null,
       currency: parsed.data.currency,
       // Validated decimal string — never a float.

@@ -83,6 +83,15 @@ const BUCKETS = {
     uploadPermission: PERMISSIONS.purchasingDocumentManage,
     downloadPermission: PERMISSIONS.purchasingDocumentDownload,
   },
+  // Phase 05: count sheets and adjustment evidence.
+  "stock-documents": {
+    classification: "internal",
+    maxSizeBytes: 15 * 1024 * 1024,
+    allowedMimePrefixes: ["image/", "application/pdf", "text/csv"],
+    signedUrlSeconds: 300,
+    uploadPermission: PERMISSIONS.inventoryDocumentManage,
+    downloadPermission: PERMISSIONS.inventoryDocumentDownload,
+  },
 } as const;
 
 type BucketId = keyof typeof BUCKETS;

@@ -57,6 +57,17 @@ export const PERMISSIONS = {
   purchasingSampleManage: "purchasing.sample.manage",
   purchasingDocumentDownload: "purchasing.document.download",
   purchasingDocumentManage: "purchasing.document.manage",
+  inventoryView: "inventory.view",
+  inventoryMovementPost: "inventory.movement.post",
+  inventoryTransferManage: "inventory.transfer.manage",
+  inventoryTransferReceive: "inventory.transfer.receive",
+  inventoryAdjustmentManage: "inventory.adjustment.manage",
+  inventoryAdjustmentApprove: "inventory.adjustment.approve",
+  inventoryCountManage: "inventory.count.manage",
+  inventoryNegativeOverride: "inventory.negative.override",
+  inventoryLocationManage: "inventory.location.manage",
+  inventoryDocumentDownload: "inventory.document.download",
+  inventoryDocumentManage: "inventory.document.manage",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
