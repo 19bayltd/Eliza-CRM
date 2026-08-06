@@ -10,6 +10,9 @@ export default defineConfig({
   // session mid-test (observed 2026-08-05).
   workers: 1,
   retries: process.env.CI ? 1 : 0,
+  // Product journeys chain many server actions against a deployed app;
+  // the 30s default cuts them off mid-flow.
+  timeout: 90000,
   reporter: [["list"]],
   // Server actions against the deployed app cross a cold start plus
   // several database round-trips; 5s (the default) is too tight for

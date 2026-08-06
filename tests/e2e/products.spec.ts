@@ -41,22 +41,21 @@ test.describe("product master", () => {
   });
 
   /**
-   * A create either succeeds or reports the entity already exists (a
-   * previous attempt in this run created it). Anything else — a
-   * permission error, a validation error, silence — is a failure.
+   * Assert the RESULT of a create, not its confirmation message.
    *
-   * Asserted at PAGE level, never scoped to the submitting form: the
-   * action calls revalidatePath, React remounts that form subtree, and a
-   * form-scoped locator then misses the message that is plainly on the
-   * page (diagnosed against the live deployment, 2026-08-05).
+   * The success banner is transient: the action calls revalidatePath, the
+   * server tree re-renders, and the banner can be gone before an assertion
+   * catches it — three live runs failed this way while the database showed
+   * every write succeeding. The durable, meaningful check is that the new
+   * entity is now listed on the page, which is also true when a previous
+   * attempt of the same run created it.
    */
-  async function expectCreatedOrExisting(
+  async function expectListed(
     page: import("@playwright/test").Page,
-    successMessage: string,
+    text: string,
   ) {
-    await expect(
-      page.getByText(successMessage).or(page.getByText(/already exists/i)).first(),
-    ).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(text, { exact: false }).first()).toBeVisible();
   }
 
   test("catalog: create a unit, category, and attribute with a value", async ({
@@ -68,7 +67,7 @@ test.describe("product master", () => {
     await unitForm.getByLabel("Code").fill(UNIT);
     await unitForm.getByLabel("Name").fill("E2E pieces");
     await unitForm.getByRole("button", { name: "Add unit" }).click();
-    await expectCreatedOrExisting(page, "Unit created.");
+    await expectListed(page, UNIT);
 
     const categoryForm = page
       .locator("form")
@@ -77,7 +76,7 @@ test.describe("product master", () => {
     await categoryForm.getByLabel("Code").fill(CATEGORY);
     await categoryForm.getByLabel("Name").fill("E2E category");
     await categoryForm.getByRole("button", { name: "Add category" }).click();
-    await expectCreatedOrExisting(page, "Category created.");
+    await expectListed(page, CATEGORY);
 
     const attributeForm = page
       .locator("form")
@@ -86,10 +85,9 @@ test.describe("product master", () => {
     await attributeForm.getByLabel("Code").fill(ATTRIBUTE);
     await attributeForm.getByLabel("Name").fill("E2E size");
     await attributeForm.getByRole("button", { name: "Add attribute" }).click();
-    await expectCreatedOrExisting(page, "Attribute created.");
+    await expectListed(page, ATTRIBUTE);
 
     // The value form belongs to the attribute just created.
-    await page.reload();
     const valueForm = page
       .locator("li")
       .filter({ hasText: ATTRIBUTE })
@@ -98,7 +96,11 @@ test.describe("product master", () => {
       .first();
     await valueForm.getByLabel("New value").fill("E2E-M");
     await valueForm.getByRole("button", { name: "Add value" }).click();
-    await expectCreatedOrExisting(page, "Value added.");
+    // The value appears in its attribute's "Values:" line once stored.
+    await page.reload();
+    await expect(
+      page.locator("li").filter({ hasText: ATTRIBUTE }).getByText("E2E-M"),
+    ).toBeVisible();
   });
 
   test("product: create, reject a duplicate SKU, then add a variant", async ({
@@ -120,15 +122,13 @@ test.describe("product master", () => {
     };
 
     await create();
-    // Created now, or already created by an earlier attempt of this run.
-    await expect(
-      page
-        .getByText("Product created")
-        .or(page.getByText(/SKU already exists/i)),
-    ).toBeVisible();
+    // The product is now listed (whether created just now or by an earlier
+    // attempt of this run) — durable state, not a transient banner.
+    await page.goto("/products");
+    await expect(page.getByRole("link", { name: SKU })).toBeVisible();
 
     // Same SKU again must be refused by the server, not silently accepted.
-    await page.reload();
+    // This error IS durable: it persists until the next navigation.
     await page.getByText("New product", { exact: true }).first().click();
     await create();
     await expect(
@@ -147,9 +147,9 @@ test.describe("product master", () => {
       .first();
     await variantForm.getByLabel("Variant SKU").fill(`${SKU}-A`);
     await variantForm.getByRole("button", { name: "Add variant" }).click();
-    await expect(
-      page.getByText("Variant added").or(page.getByText(/already exists/i)),
-    ).toBeVisible();
+    // The variant now appears in the product's variants table.
+    await page.reload();
+    await expect(page.getByText(`${SKU}-A`)).toBeVisible();
   });
 
   test("intelligence panel is present for a permitted user and saves", async ({
@@ -170,7 +170,12 @@ test.describe("product master", () => {
     await form.getByLabel("Target cost").fill("142.50");
     await form.getByLabel("Currency").fill("BDT");
     await form.getByRole("button", { name: "Save intelligence" }).click();
-    await expect(page.getByText("Intelligence saved.")).toBeVisible();
+    // Reload and confirm the confidential values were persisted.
+    await page.reload();
+    await expect(page.getByLabel("Sourcing notes")).toHaveValue(
+      `E2E sourcing note ${RUN}`,
+    );
+    await expect(page.getByLabel("Target cost")).toHaveValue("142.50");
   });
 
   test("status machine: activate, then archive with a reason", async ({ page }) => {
@@ -185,19 +190,20 @@ test.describe("product master", () => {
       .first();
     await activate.getByLabel("Reason").fill("E2E activation");
     await activate.getByRole("button", { name: "Activate product" }).click();
-    await expect(page.getByText("Product activated.")).toBeVisible();
-
+    // Status badge is durable state; the success banner is not.
     await page.reload();
+    await expect(page.locator(".status-active").first()).toBeVisible();
+
     const archive = page
       .locator("form")
       .filter({ hasText: "Archive product" })
       .first();
     await archive.getByLabel("Reason").fill("E2E archival");
     await archive.getByRole("button", { name: "Archive product" }).click();
-    await expect(page.getByText("Product archived.")).toBeVisible();
+    await page.reload();
+    await expect(page.locator(".status-archived").first()).toBeVisible();
 
     // Archived products expose no edit affordance.
-    await page.reload();
     await expect(
       page.locator("form").filter({ hasText: "Save changes" }),
     ).toHaveCount(0);
