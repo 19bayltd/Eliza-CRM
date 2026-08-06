@@ -2,9 +2,9 @@
 
 ## Current Phase
 
-Phase 03 — Supplier Management: **Complete in Staging** 2026-08-06
-(D-019 activation, D-020 completion). No phase is active; Phase 04
-requires explicit owner authorization.
+Phase 04 — Purchasing and Samples (activated by owner instruction
+2026-08-06, D-021). Phase 03 closed **Complete in Staging** the same day
+(D-019 activation, D-020 completion).
 
 ## Current Status
 
@@ -25,19 +25,20 @@ returns 0 rows. Defaults recorded as D-019.
 
 Phases 00–03 are **Complete in Staging** with all criteria
 evidence-backed (Phases 02 and 03 fully live-verified by owner browser
-testing 2026-08-05/06). Production deployment is NOT authorized. Phase 04 must
-NOT begin without explicit owner authorization.
+testing 2026-08-05/06). Production deployment is NOT authorized. Phase 05
+must NOT begin without explicit owner authorization.
 
-## Approved Scope (Phase 03)
+## Approved Scope (Phase 04)
 
-Suppliers (directory, contacts, capabilities), confidential quotations
-linked to products/variants with captured exchange rates, quotation
-comparison, private supplier documents, 7 new permissions with default
-role mappings, module documentation, tests.
+Purchase requests and lines, a configurable approval engine (thresholds
+as data) with approval records, purchase orders with confidential line
+costs, atomic purchase receiving, sample requests and evaluation, 12 new
+permissions with default role mappings, two storage buckets, module
+documentation, tests.
 
 ## Excluded From Current Work
 
-Purchasing/samples (04), inventory (05), barcodes (06), POS, CRM,
+Inventory (05), barcodes (06), POS, CRM,
 orders, HR, finance, reporting, dashboards, alerts, AI. Supplier
 payments (12), supplier portals.
 
@@ -85,7 +86,12 @@ Phase 03 (2026-08-06):
 
 ## Work in Progress
 
-None. Phase 04 awaits explicit owner activation.
+Phase 04 — Purchasing and Samples. Specification and module docs
+authored; migrations, services, UI, tests and verification to follow.
+Scope: purchase requests with a configurable approval engine, purchase
+orders with a walled cost table, atomic receiving (accepted/damaged/
+missing/extra), and sample request/evaluation. Excluded: inventory
+ledger postings (Phase 05), supplier invoicing and payments (Phase 12).
 
 ## Blocked Work
 
@@ -116,7 +122,7 @@ None. Phase 04 awaits explicit owner activation.
 
 - Owner ratification or override of Phase 02/03 defaults (D-017, D-019)
 - Owner approval to execute the production deployment plan
-- Phase 04 activation (do not start without it)
+- Phase 05 activation (do not start without it)
 
 ## Test Status
 
@@ -168,5 +174,5 @@ Production deployment not authorized.
 Phases 00–03: **Complete in Staging**, all criteria evidence-backed
 (D-015/D-018 waivers retired by evidence; Phase 03 carries no waiver —
 every criterion including live manual verification passed on evidence).
-Criteria tables in the respective phase documents. Phase 04 not
-authorized.
+Criteria tables in the respective phase documents. Phase 04 is in
+progress under D-021.
