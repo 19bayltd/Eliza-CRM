@@ -177,6 +177,22 @@ th { color: var(--muted); font-weight: 600; white-space: nowrap; }
   border-color: var(--danger);
 }
 .badge.status-invited { color: var(--accent); border-color: var(--accent); }
+/* Product lifecycle: draft is muted (not yet in use), archived is retired. */
+.badge.status-draft { color: var(--muted); border-style: dashed; }
+.badge.status-archived { color: var(--danger); border-color: var(--danger); }
 .muted { color: var(--muted); font-size: 0.85rem; }
 details { margin: 0.4rem 0; }
 details > summary { cursor: pointer; color: var(--accent); font-size: 0.85rem; }
+
+/*
+ * Groups one catalog subsection (heading + list + its own add-form) so an
+ * add-form cannot read as belonging to the section heading beneath it.
+ */
+.subsection {
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+  margin-top: 1.25rem;
+}
+.subsection:first-of-type { border-top: none; margin-top: 0.5rem; }
+.subsection > h3 { margin-top: 0; }
+.subsection > form { margin-top: 0.75rem; }

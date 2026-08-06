@@ -44,6 +44,7 @@ export default async function CatalogPage() {
             {company.name} <span className="badge">{company.code}</span>
           </h2>
 
+          <section className="subsection">
           <h3>Units</h3>
           {catalog.units.length === 0 ? (
             <p className="empty">None yet.</p>
@@ -51,7 +52,8 @@ export default async function CatalogPage() {
             <ul>
               {catalog.units.map((u) => (
                 <li key={u.id}>
-                  {u.name} <span className="badge">{u.code}</span>{" "}
+                  {/* Code first, matching the form's field order. */}
+                  <span className="badge">{u.code}</span> {u.name}{" "}
                   <span className={`badge status-${u.status}`}>{u.status}</span>
                   {canManage && u.status === "active" && (
                     <details>
@@ -93,7 +95,9 @@ export default async function CatalogPage() {
               </label>
             </ActionForm>
           )}
+          </section>
 
+          <section className="subsection">
           <h3>Categories</h3>
           {catalog.categories.length === 0 ? (
             <p className="empty">None yet.</p>
@@ -101,10 +105,8 @@ export default async function CatalogPage() {
             <ul>
               {catalog.categories.map((c) => (
                 <li key={c.id}>
-                  {c.parent_id
-                    ? `↳ ${c.name}`
-                    : c.name}{" "}
-                  <span className="badge">{c.code}</span>{" "}
+                  {c.parent_id && "↳ "}
+                  <span className="badge">{c.code}</span> {c.name}{" "}
                   <span className={`badge status-${c.status}`}>{c.status}</span>
                   {canManage && c.status === "active" && (
                     <details>
@@ -159,7 +161,9 @@ export default async function CatalogPage() {
               </label>
             </ActionForm>
           )}
+          </section>
 
+          <section className="subsection">
           <h3>Attributes</h3>
           {catalog.attributes.length === 0 ? (
             <p className="empty">None yet.</p>
@@ -167,7 +171,7 @@ export default async function CatalogPage() {
             <ul>
               {catalog.attributes.map((a) => (
                 <li key={a.id}>
-                  {a.name} <span className="badge">{a.code}</span>{" "}
+                  <span className="badge">{a.code}</span> {a.name}{" "}
                   <span className={`badge status-${a.status}`}>{a.status}</span>
                   <br />
                   <span className="muted">
@@ -230,6 +234,7 @@ export default async function CatalogPage() {
               </label>
             </ActionForm>
           )}
+          </section>
         </div>
       ))}
     </div>
