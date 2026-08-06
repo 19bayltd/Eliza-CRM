@@ -45,9 +45,33 @@ export const PERMISSIONS = {
   suppliersQuotationManage: "suppliers.quotation.manage",
   suppliersDocumentDownload: "suppliers.document.download",
   suppliersDocumentManage: "suppliers.document.manage",
+  purchasingRequestView: "purchasing.request.view",
+  purchasingRequestManage: "purchasing.request.manage",
+  purchasingRequestApprove: "purchasing.request.approve",
+  purchasingRequestApproveHigh: "purchasing.request.approve.high",
+  purchasingOrderView: "purchasing.order.view",
+  purchasingOrderManage: "purchasing.order.manage",
+  purchasingCostView: "purchasing.cost.view",
+  purchasingReceive: "purchasing.receive",
+  purchasingSampleView: "purchasing.sample.view",
+  purchasingSampleManage: "purchasing.sample.manage",
+  purchasingDocumentDownload: "purchasing.document.download",
+  purchasingDocumentManage: "purchasing.document.manage",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+const PERMISSION_KEYS = new Set<string>(Object.values(PERMISSIONS));
+
+/**
+ * Narrow a database-sourced permission string to a known key. Approval
+ * rules name their required permission as data; a rule pointing at an
+ * unknown or misspelled key must fail closed rather than be treated as
+ * satisfied, so callers refuse when this returns null.
+ */
+export function toPermissionKey(value: string): PermissionKey | null {
+  return PERMISSION_KEYS.has(value) ? (value as PermissionKey) : null;
+}
 
 /**
  * Builds the caller's access context from the database. Reads run on the

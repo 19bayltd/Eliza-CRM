@@ -1,16 +1,18 @@
 -- Migration: purchasing transactional functions (Phase 04)
 -- Purpose: per-company document numbering under a row lock, and atomic
 --          purchase receiving per DATABASE_ARCHITECTURE.md §6.
--- Rollback: drop function app.record_purchase_receipt(uuid, uuid, jsonb, text, uuid);
---           drop function app.next_document_number(uuid, text).
--- Notes: both are SECURITY DEFINER and callable by the service role only.
+-- Rollback: drop function public.record_purchase_receipt(uuid, uuid, jsonb, text, uuid);
+--           drop function public.next_document_number(uuid, text).
+-- Notes: both are SECURITY DEFINER and callable by the service role only
+--        (execute revoked from anon/authenticated). They live in public
+--        because PostgREST resolves rpc() against exposed schemas only.
 --        Authorization happens in the server services before these run;
 --        the functions guarantee integrity, not permission.
 
 -- Allocate the next number for a company/type/year. The upsert takes a
 -- row lock, so two simultaneous submissions cannot receive the same
 -- number — the second waits and gets n+1.
-create or replace function app.next_document_number(
+create or replace function public.next_document_number(
   p_company_id uuid,
   p_doc_type   text
 ) returns text
@@ -37,7 +39,7 @@ begin
 end;
 $$;
 
-revoke execute on function app.next_document_number(uuid, text) from anon, authenticated;
+revoke execute on function public.next_document_number(uuid, text) from anon, authenticated;
 
 -- Record a receipt atomically: header + lines + purchase-order status,
 -- all in one transaction. Any failure rolls back the entire receipt —
@@ -48,7 +50,7 @@ revoke execute on function app.next_document_number(uuid, text) from anon, authe
 --
 -- Returns the created receipt id, its number, and the resulting order
 -- status so the caller can audit precisely what happened.
-create or replace function app.record_purchase_receipt(
+create or replace function public.record_purchase_receipt(
   p_company_id uuid,
   p_order_id   uuid,
   p_lines      jsonb,
@@ -89,7 +91,7 @@ begin
     raise exception 'A receipt needs at least one line' using errcode = '22023';
   end if;
 
-  v_number := app.next_document_number(p_company_id, 'GRN');
+  v_number := public.next_document_number(p_company_id, 'GRN');
 
   insert into public.purchase_receipts (company_id, number, order_id, note, created_by)
   values (p_company_id, v_number, p_order_id, nullif(trim(coalesce(p_note, '')), ''), p_actor)
@@ -151,5 +153,5 @@ end;
 $$;
 
 revoke execute on function
-  app.record_purchase_receipt(uuid, uuid, jsonb, text, uuid)
+  public.record_purchase_receipt(uuid, uuid, jsonb, text, uuid)
 from anon, authenticated;
